@@ -1,0 +1,46 @@
+# Comicseller — Portainer stack (Docker Compose v3).
+#
+# In Portainer: Stacks -> Add stack -> paste this -> set the environment
+# variables in the "Environment variables" section (see docs/deployment-portainer.md).
+#
+# Image is set to your repo: ghcr.io/maxxer79/comicseller (lowercase).
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: comicseller
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-comicseller}
+      POSTGRES_DB: comicseller
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U comicseller"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    image: ghcr.io/maxxer79/comicseller:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://comicseller:${DB_PASSWORD:-comicseller}@db:5432/comicseller?schema=public
+      NODE_ENV: production
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ADMIN_NAME: ${ADMIN_NAME:-Admin}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      VISION_MOCK: ${VISION_MOCK:-0}
+    ports:
+      - "${APP_PORT:-4000}:4000"
+    volumes:
+      - app_storage:/app/backend/storage
+
+volumes:
+  db_data:
+  app_storage:

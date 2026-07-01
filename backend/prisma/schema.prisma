@@ -1,0 +1,227 @@
+// Comicseller data model — Phase 1
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// User — app login. Multi-user with roles (ADMIN can manage users).
+// ---------------------------------------------------------------------------
+model User {
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  email        String   @unique
+  name         String?
+  passwordHash String
+  role         Role     @default(USER)
+  active       Boolean  @default(true)
+  lastLoginAt  DateTime?
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+// ---------------------------------------------------------------------------
+// Comic — one physical copy of a book (each copy is its own row / SKU).
+// ---------------------------------------------------------------------------
+model Comic {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Human-friendly stock number for finding the physical book in a box.
+  sku String @unique @default(cuid())
+
+  // --- Identification (Phase 2 fills these from the vision model) ---
+  title       String
+  issueNumber String?
+  publisher   String?
+  variant     String? // e.g. "Cover B", "Newsstand", "2nd print"
+  year        Int?
+  keyIssue    Boolean @default(false) // first appearance, major event, etc.
+  keyNotes    String? // why it's a key (e.g. "1st app. of X")
+
+  // --- Condition ---
+  // aiSuggestedGrade is what the model guessed; grade is what YOU confirmed.
+  aiSuggestedGrade Float?     // 0.5 - 10.0 (CGC-style scale)
+  grade            Float?     // confirmed grade used for pricing
+  condition        Condition?
+  graded           Boolean    @default(false) // professionally slabbed?
+  gradingCompany   String? // CGC, CBCS, etc. (if slabbed)
+
+  // --- Workflow state ---
+  status ComicStatus @default(INTAKE)
+
+  // --- Recommendation output (Phase 3 fills these) ---
+  recommendedPrice   Decimal?     @db.Decimal(10, 2)
+  recommendedFormat  ListingFormat?
+  recommendedAction  SellAction? // SELL_NOW vs HOLD ("cook longer")
+  recommendationNote String?
+
+  // Relations
+  photos         Photo[]
+  priceSnapshots PriceSnapshot[]
+  listing        Listing?
+
+  @@index([title, issueNumber])
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Photo — image of a comic, stored in object storage; DB holds a reference.
+// ---------------------------------------------------------------------------
+model Photo {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  comic   Comic  @relation(fields: [comicId], references: [id], onDelete: Cascade)
+  comicId String
+
+  // Storage key/path in the object store (local disk now, S3-compatible later).
+  storageKey  String
+  url         String? // public/served URL if applicable
+  kind        PhotoKind @default(FRONT)
+  contentType String? // e.g. "image/jpeg"
+  bytes       Int?
+  isPrimary   Boolean   @default(false)
+
+  @@index([comicId])
+}
+
+// ---------------------------------------------------------------------------
+// PriceSnapshot — a set of comps captured at a point in time for a comic.
+// One row per pricing run; keeps history so we can show trends later.
+// ---------------------------------------------------------------------------
+model PriceSnapshot {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  comic   Comic  @relation(fields: [comicId], references: [id], onDelete: Cascade)
+  comicId String
+
+  source     PriceSource // where the comps came from
+  sampleSize Int         @default(0) // how many comps informed this
+
+  lowPrice    Decimal? @db.Decimal(10, 2)
+  averagePrice Decimal? @db.Decimal(10, 2)
+  medianPrice Decimal? @db.Decimal(10, 2)
+  highPrice   Decimal? @db.Decimal(10, 2)
+
+  // Liquidity / trend signals used by the recommendation engine.
+  salesPerMonth Float? // velocity estimate
+  trend         PriceTrend?
+
+  // Raw comps payload (JSON) for auditing/debugging the recommendation.
+  rawComps Json?
+
+  @@index([comicId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Listing — an eBay listing for a comic (draft -> active -> sold/ended).
+// ---------------------------------------------------------------------------
+model Listing {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  comic   Comic  @relation(fields: [comicId], references: [id], onDelete: Cascade)
+  comicId String @unique // one active listing per copy
+
+  format      ListingFormat
+  status      ListingStatus @default(DRAFT)
+  approvedAt  DateTime? // when you approved it for posting
+
+  // Listing content
+  listingTitle String // the eBay title (keyword-optimized)
+  description  String?
+  price        Decimal? @db.Decimal(10, 2) // BIN price or auction start
+  categoryId   String? // eBay category id
+
+  // eBay linkage (Phase 5)
+  ebayListingId String?
+  ebayUrl       String?
+
+  // Performance tracking (Phase 5)
+  views     Int? @default(0)
+  watchers  Int? @default(0)
+  soldPrice Decimal? @db.Decimal(10, 2)
+  soldAt    DateTime?
+
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum ComicStatus {
+  INTAKE       // just photographed / being identified
+  IDENTIFIED   // metadata confirmed
+  PRICED       // comps pulled + recommendation made
+  READY        // reviewed, ready to list
+  LISTED       // has an active listing
+  SOLD
+  ARCHIVED     // pulled from sale / not selling
+}
+
+enum Condition {
+  POOR
+  FAIR
+  GOOD
+  VERY_GOOD
+  FINE
+  VERY_FINE
+  NEAR_MINT
+  MINT
+}
+
+enum ListingFormat {
+  AUCTION
+  BUY_IT_NOW
+}
+
+enum SellAction {
+  SELL_NOW
+  HOLD // "let it cook longer"
+}
+
+enum PhotoKind {
+  FRONT
+  BACK
+  DETAIL // defect close-up, spine, etc.
+  SLAB   // graded-case label
+}
+
+enum PriceSource {
+  EBAY_ACTIVE    // free: current active listings (Phase 3 default)
+  EBAY_SOLD      // eBay Marketplace Insights (after approval)
+  MANUAL         // user-entered comps
+  COMIC_API      // GoCollect / CovrPrice (optional, paid)
+}
+
+enum PriceTrend {
+  RISING
+  FLAT
+  FALLING
+  UNKNOWN
+}
+
+enum ListingStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  ACTIVE
+  ENDED
+  SOLD
+  ERROR
+}
