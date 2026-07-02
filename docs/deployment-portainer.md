@@ -44,6 +44,25 @@ In the stack's **Environment variables** section add:
 | `APP_PORT` | optional | Host port, defaults to `4000` |
 | `ADMIN_NAME` | optional | Display name |
 | `VISION_MOCK` | optional | `1` to test identify without an API key |
+| `DATA_DIR` | optional | Base folder on the NAS for data; defaults to `/volume1/docker/comicseller` |
+
+### Prepare the data folder (UGREEN NAS)
+
+Data is bind-mounted to your NAS folder so it lives on `/volume1` and is easy to
+back up. Before deploying, create the two subfolders (via SSH or the file
+manager):
+
+```bash
+mkdir -p /volume1/docker/comicseller/db
+mkdir -p /volume1/docker/comicseller/storage
+```
+
+- `db/` — Postgres database files
+- `storage/` — uploaded comic photos
+
+If you put the app somewhere other than `/volume1/docker/comicseller`, set the
+`DATA_DIR` environment variable to that base path and create `db/` and
+`storage/` under it.
 
 Then **Deploy the stack**.
 
@@ -52,8 +71,8 @@ Then **Deploy the stack**.
 - On boot the app syncs the database schema automatically (`prisma db push`) and
   seeds your admin account from `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
 - Open `http://<NAS-IP>:4000` and sign in.
-- Change nothing else — photos persist in the `app_storage` volume and the
-  database in `db_data`.
+- Change nothing else — photos persist in `/volume1/docker/comicseller/storage`
+  and the database in `/volume1/docker/comicseller/db`.
 
 ## 5. Updating
 
@@ -71,7 +90,7 @@ baked into the image, so after redeploy you'll see the new version. See
 
 - The image is multi-arch (amd64 + arm64), so it runs on Intel Synology/Unraid
   and ARM boards alike — Docker pulls the right one automatically.
-- Back up the two named volumes (`db_data`, `app_storage`) as part of your NAS
-  backup routine.
+- Back up `/volume1/docker/comicseller` (both `db/` and `storage/`) as part of
+  your NAS backup routine — everything lives there.
 - To put it behind HTTPS, front it with your existing reverse proxy (Nginx
   Proxy Manager, Traefik, Caddy) pointing at the app container's port 4000.

@@ -14,7 +14,8 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-comicseller}
       POSTGRES_DB: comicseller
     volumes:
-      - db_data:/var/lib/postgresql/data
+      # Bind-mount to the NAS folder so data lives on /volume1 (backup-friendly).
+      - ${DATA_DIR:-/volume1/docker/comicseller}/db:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U comicseller"]
       interval: 10s
@@ -39,8 +40,5 @@ services:
     ports:
       - "${APP_PORT:-4000}:4000"
     volumes:
-      - app_storage:/app/backend/storage
-
-volumes:
-  db_data:
-  app_storage:
+      # Uploaded comic photos live on the NAS folder too.
+      - ${DATA_DIR:-/volume1/docker/comicseller}/storage:/app/backend/storage
