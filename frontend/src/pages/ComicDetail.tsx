@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api, type Comic, type Trend } from "../api";
 import { buildEbayTitle, buildEbayDescription } from "../lib/ebay";
+import { Progress } from "../components/Spinner";
+import { BarcodeScanner } from "../components/BarcodeScanner";
 
 function money(v: string | null): string {
   return v === null ? "—" : `$${Number(v).toFixed(2)}`;
@@ -30,6 +32,7 @@ export function ComicDetail() {
   const [error, setError] = useState<string>();
   const [msg, setMsg] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const [scanning, setScanning] = useState(false);
 
   // Editable metadata form
   const [form, setForm] = useState<Partial<Comic>>({});
@@ -53,6 +56,7 @@ export function ComicDetail() {
         publisher: c.publisher,
         variant: c.variant,
         year: c.year,
+        upc: c.upc,
         keyIssue: c.keyIssue,
         keyNotes: c.keyNotes,
         grade: c.grade,
@@ -177,6 +181,17 @@ export function ComicDetail() {
 
       {msg && <p className="success">{msg}</p>}
       {error && <p className="error">{error}</p>}
+      {busy && <Progress label="Working…" />}
+
+      {scanning && (
+        <BarcodeScanner
+          onDetected={(code) => {
+            set("upc", code);
+            setScanning(false);
+          }}
+          onClose={() => setScanning(false)}
+        />
+      )}
 
       <div className="row">
         <div className="col" style={{ maxWidth: 220 }}>
@@ -250,6 +265,26 @@ export function ComicDetail() {
                   value={form.grade ?? ""}
                   onChange={(e) => set("grade", e.target.value ? Number(e.target.value) : null)}
                 />
+              </div>
+            </div>
+            <div className="row">
+              <div className="col">
+                <label>UPC / barcode</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input
+                    value={form.upc ?? ""}
+                    onChange={(e) => set("upc", e.target.value || null)}
+                    placeholder="Scan or type"
+                  />
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() => setScanning(true)}
+                    style={{ whiteSpace: "nowrap" }}
+                  >
+                    📷 Scan
+                  </button>
+                </div>
               </div>
             </div>
             <div className="row">

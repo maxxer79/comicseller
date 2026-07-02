@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { NavLink, Route, Routes, Navigate } from "react-router-dom";
+import { NavLink, Route, Routes, Navigate, Link } from "react-router-dom";
 import { useAuth } from "./auth";
 import { api, type VersionInfo } from "./api";
 import { Login } from "./pages/Login";
@@ -9,11 +9,27 @@ import { ComicDetail } from "./pages/ComicDetail";
 import { ImportCsv } from "./pages/ImportCsv";
 import { Admin } from "./pages/Admin";
 
+function useTheme(): [string, () => void] {
+  const [theme, setTheme] = useState<string>(
+    () => document.documentElement.dataset.theme || "light"
+  );
+  function toggle() {
+    const next = theme === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    localStorage.setItem("comicseller.theme", next);
+    setTheme(next);
+  }
+  return [theme, toggle];
+}
+
 function Header({ version }: { version?: VersionInfo }) {
   const { user, logout } = useAuth();
+  const [theme, toggleTheme] = useTheme();
   return (
     <header className="app-header">
-      <span className="brand">📚 Comicseller</span>
+      <Link className="brand-link" to="/">
+        <span className="brand">📚 Comicseller</span>
+      </Link>
       <nav>
         <NavLink to="/" end>
           Inventory
@@ -23,6 +39,14 @@ function Header({ version }: { version?: VersionInfo }) {
         {user?.role === "ADMIN" && <NavLink to="/admin">Admin</NavLink>}
       </nav>
       <div className="header-right">
+        <button
+          className="theme-toggle"
+          onClick={toggleTheme}
+          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          aria-label="Toggle theme"
+        >
+          {theme === "dark" ? "☀️" : "🌙"}
+        </button>
         {version && <span className="version-chip">v{version.version}</span>}
         <span className="header-user">{user?.name || user?.email}</span>
         <button className="secondary" onClick={logout}>

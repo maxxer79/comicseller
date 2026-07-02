@@ -18,7 +18,7 @@ export interface PriceSnapshot {
 export interface Comic {
   id: string; sku: string; createdAt: string; updatedAt: string;
   title: string; issueNumber: string | null; publisher: string | null;
-  variant: string | null; year: number | null; keyIssue: boolean; keyNotes: string | null;
+  variant: string | null; year: number | null; upc: string | null; keyIssue: boolean; keyNotes: string | null;
   aiSuggestedGrade: number | null; grade: number | null; condition: string | null;
   graded: boolean; gradingCompany: string | null; status: ComicStatus;
   recommendedPrice: string | null; recommendedFormat: ListingFormat | null;
@@ -86,11 +86,16 @@ export const api = {
     return request(`/comics${q}`);
   },
   async getComic(id: string): Promise<Comic> { return request(`/comics/${id}`); },
-  async createComic(file: File | null, title?: string): Promise<Comic> {
+  async createComic(file: File | null, title?: string, upc?: string): Promise<Comic> {
     const form = new FormData();
     if (title) form.append("title", title);
+    if (upc) form.append("upc", upc);
     if (file) form.append("photo", file);
     return request(`/comics`, { method: "POST", body: form });
+  },
+  // Find existing comics with the same UPC (duplicate check).
+  async findByUpc(upc: string): Promise<{ total: number; items: Comic[] }> {
+    return request(`/comics?upc=${encodeURIComponent(upc)}`);
   },
   async addPhoto(id: string, file: File, kind?: string): Promise<Photo> {
     const form = new FormData();

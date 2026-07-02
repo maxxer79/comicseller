@@ -24,9 +24,8 @@ const comicInclude = {
 
 /**
  * POST /comics
- * Create a new intake. Optionally accepts an initial photo (field "photo").
- * Title is optional at intake — identification (Phase 2) can fill it in — so
- * we default to "Untitled" until confirmed.
+ * Create a new intake. Optionally accepts an initial photo (field "photo")
+ * and a scanned UPC. Title defaults to "Untitled" until confirmed.
  */
 comicsRouter.post("/comics", upload.single("photo"), async (req, res, next) => {
   try {
@@ -34,8 +33,12 @@ comicsRouter.post("/comics", upload.single("photo"), async (req, res, next) => {
       typeof req.body.title === "string" && req.body.title.trim()
         ? req.body.title.trim()
         : "Untitled";
+    const upc =
+      typeof req.body.upc === "string" && req.body.upc.trim()
+        ? req.body.upc.trim()
+        : null;
 
-    const comic = await prisma.comic.create({ data: { title } });
+    const comic = await prisma.comic.create({ data: { title, upc } });
 
     if (req.file) {
       const saved = await savePhoto(
@@ -108,8 +111,7 @@ comicsRouter.post(
 /**
  * POST /comics/:id/identify
  * Run vision identification on the comic's primary (or first) photo.
- * Stores AI suggestions on the comic WITHOUT overwriting fields you've
- * already confirmed — the response returns the raw suggestion for review.
+ * Stores AI suggestions WITHOUT overwriting fields you've already confirmed.
  */
 comicsRouter.post("/comics/:id/identify", async (req, res, next) => {
   try {
@@ -141,8 +143,7 @@ comicsRouter.post("/comics/:id/identify", async (req, res, next) => {
 
     const result = await identifyComic(base64, photo.contentType ?? "image/jpeg");
 
-    // Save the suggestion. We fill blank identity fields to save you typing,
-    // but grade goes ONLY to aiSuggestedGrade — never to the confirmed `grade`.
+    // Save the suggestion. Grade goes ONLY to aiSuggestedGrade — never `grade`.
     const updated = await prisma.comic.update({
       where: { id: comic.id },
       data: {
@@ -170,15 +171,13 @@ comicsRouter.post("/comics/:id/identify", async (req, res, next) => {
 
 /**
  * PATCH /comics/:id
- * Confirm / edit metadata and the confirmed grade. This is the human
- * "you confirm" step. Setting `grade` here is what unlocks pricing later.
+ * Confirm / edit metadata and the confirmed grade (the human "you confirm" step).
  */
 comicsRouter.patch("/comics/:id", async (req, res, next) => {
   try {
     const b = req.body ?? {};
     const data: Record<string, unknown> = {};
 
-    // Whitelisted, validated fields only.
     if (typeof b.title === "string") data.title = b.title.trim();
     if (b.issueNumber === null || typeof b.issueNumber === "string")
       data.issueNumber = b.issueNumber;
@@ -186,6 +185,7 @@ comicsRouter.patch("/comics/:id", async (req, res, next) => {
       data.publisher = b.publisher;
     if (b.variant === null || typeof b.variant === "string")
       data.variant = b.variant;
+    if (b.upc === null || typeof b.upc === "string") data.upc = b.upc;
     if (b.year === null || typeof b.year === "number") data.year = b.year;
     if (typeof b.keyIssue === "boolean") data.keyIssue = b.keyIssue;
     if (b.keyNotes === null || typeof b.keyNotes === "string")
@@ -202,7 +202,6 @@ comicsRouter.patch("/comics/:id", async (req, res, next) => {
         return res.status(400).json({ error: "grade must be between 0.5 and 10.0" });
       }
       data.grade = b.grade;
-      // Confirming a grade advances the workflow to IDENTIFIED (ready to price).
       if (typeof b.grade === "number") data.status = "IDENTIFIED";
     }
 
@@ -225,7 +224,7 @@ comicsRouter.patch("/comics/:id", async (req, res, next) => {
 });
 
 /**
- * GET /comics — list with simple filtering by status and pagination.
+ * GET /comics — list with filtering by status and/or upc, and pagination.
  */
 comicsRouter.get("/comics", async (req, res, next) => {
   try {
@@ -233,17 +232,21 @@ comicsRouter.get("/comics", async (req, res, next) => {
     const skip = Math.max(Number(req.query.offset ?? 0), 0);
     const status =
       typeof req.query.status === "string" ? req.query.status : undefined;
+    const upc = typeof req.query.upc === "string" ? req.query.upc : undefined;
 
-    const where = status ? { status: status as never } : {};
+    const where: Record<string, unknown> = {};
+    if (status) where.status = status;
+    if (upc) where.upc = upc;
+
     const [items, total] = await Promise.all([
       prisma.comic.findMany({
-        where,
+        where: where as never,
         include: comicInclude,
         orderBy: { updatedAt: "desc" },
         take,
         skip,
       }),
-      prisma.comic.count({ where }),
+      prisma.comic.count({ where: where as never }),
     ]);
     res.json({ total, items });
   } catch (err) {

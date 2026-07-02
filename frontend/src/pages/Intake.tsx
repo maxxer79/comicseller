@@ -1,16 +1,17 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
+import { Progress } from "../components/Spinner";
+import { BarcodeScanner } from "../components/BarcodeScanner";
 
-/**
- * Add a comic: upload a cover photo, create the intake, then (optionally) run
- * AI identification. On success, jump to the detail/review page.
- */
 export function Intake() {
   const nav = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string>();
   const [title, setTitle] = useState("");
+  const [upc, setUpc] = useState("");
+  const [dupWarning, setDupWarning] = useState<string>();
+  const [scanning, setScanning] = useState(false);
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState<string>();
   const [error, setError] = useState<string>();
@@ -21,20 +22,33 @@ export function Intake() {
     setPreview(f ? URL.createObjectURL(f) : undefined);
   }
 
+  async function onDetected(code: string) {
+    setUpc(code);
+    setScanning(false);
+    setDupWarning(undefined);
+    try {
+      const dup = await api.findByUpc(code);
+      if (dup.total > 0) {
+        setDupWarning(
+          `Heads up: you already have ${dup.total} comic(s) with this UPC in inventory.`
+        );
+      }
+    } catch {
+      /* non-fatal */
+    }
+  }
+
   async function submit(runIdentify: boolean) {
     setBusy(true);
     setError(undefined);
     try {
       setStep("Creating intake…");
-      const comic = await api.createComic(file, title || undefined);
-
+      const comic = await api.createComic(file, title || undefined, upc || undefined);
       if (runIdentify && file) {
-        setStep("Identifying with AI…");
+        setStep("Identifying from photo…");
         try {
           await api.identify(comic.id);
         } catch (e) {
-          // Identification failing shouldn't lose the intake; surface it on the
-          // detail page instead.
           console.warn("identify failed", e);
         }
       }
@@ -52,7 +66,30 @@ export function Intake() {
       <div className="row">
         <div className="col">
           <label>Cover photo</label>
-          <input type="file" accept="image/*" onChange={onFile} />
+          <input type="file" accept="image/*" capture="environment" onChange={onFile} />
+
+          <label>UPC / barcode</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              value={upc}
+              onChange={(e) => setUpc(e.target.value)}
+              placeholder="Scan or type"
+            />
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => setScanning(true)}
+              style={{ whiteSpace: "nowrap" }}
+            >
+              📷 Scan
+            </button>
+          </div>
+          {dupWarning && (
+            <p className="warn" style={{ color: "var(--warn)", fontSize: 13 }}>
+              {dupWarning}
+            </p>
+          )}
+
           <label>Title (optional — AI can fill this in)</label>
           <input
             value={title}
@@ -71,20 +108,27 @@ export function Intake() {
 
       <div className="spacer" />
       {error && <p className="error">{error}</p>}
-      {busy && <p className="muted">{step}</p>}
+      {busy && <Progress label={step ?? "Working…"} />}
 
-      <div className="pill-row">
-        <button onClick={() => submit(true)} disabled={busy || !file}>
-          Create &amp; identify with AI
-        </button>
-        <button className="secondary" onClick={() => submit(false)} disabled={busy}>
-          Create without AI
-        </button>
-      </div>
+      {!busy && (
+        <div className="pill-row">
+          <button onClick={() => submit(true)} disabled={!file}>
+            Create &amp; identify with AI
+          </button>
+          <button className="secondary" onClick={() => submit(false)}>
+            Create without AI
+          </button>
+        </div>
+      )}
       <p className="muted" style={{ fontSize: 12 }}>
-        AI identification needs a photo and an API key configured on the server
-        (or VISION_MOCK=1 to test). You'll confirm everything on the next screen.
+        On a phone, the photo button opens your camera. AI identification needs a
+        photo and a configured API key (or VISION_MOCK=1). You'll confirm
+        everything on the next screen.
       </p>
+
+      {scanning && (
+        <BarcodeScanner onDetected={onDetected} onClose={() => setScanning(false)} />
+      )}
     </div>
   );
 }
