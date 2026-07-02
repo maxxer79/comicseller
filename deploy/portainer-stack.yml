@@ -1,9 +1,29 @@
 # Comicseller — Portainer stack (Docker Compose v3).
 #
-# In Portainer: Stacks -> Add stack -> paste this -> set the environment
-# variables in the "Environment variables" section (see docs/deployment-portainer.md).
+# In Portainer: Stacks -> Add stack -> paste this -> set the values below in the
+# "Environment variables" section (or a .env file). See docs/deployment-portainer.md.
 #
 # Image is set to your repo: ghcr.io/maxxer79/comicseller (lowercase).
+#
+# ===========================================================================
+#  ENVIRONMENT VARIABLES — set these in Portainer (do NOT hardcode secrets here;
+#  this file is committed to GitHub). Copy deploy/.env.example to fill values.
+# ---------------------------------------------------------------------------
+#  REQUIRED
+#    JWT_SECRET       Long random string. Generate: openssl rand -base64 48
+#    ADMIN_EMAIL      Your login email (first admin, created on first boot)
+#    ADMIN_PASSWORD   Strong password, min 8 chars
+#
+#  RECOMMENDED
+#    DB_PASSWORD      Postgres password            (default: comicseller)
+#
+#  OPTIONAL
+#    ANTHROPIC_API_KEY  Enables AI identification  (default: empty/off)
+#    APP_PORT           Host port                  (default: 4000)
+#    ADMIN_NAME         Admin display name         (default: Admin)
+#    VISION_MOCK        "1" to test AI without a key (default: 0)
+#    DATA_DIR           NAS data base folder       (default: /volume1/docker/comicseller)
+# ===========================================================================
 
 services:
   db:

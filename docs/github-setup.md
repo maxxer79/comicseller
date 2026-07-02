@@ -31,7 +31,7 @@ Open **PowerShell** (or Git Bash) and run these, replacing `maxxer79`:
 cd C:\dev\Comicseller
 git init
 git add .
-git commit -m "Comicseller v0.2.0"
+git commit -m "Comicseller v0.2.1"
 git branch -M main
 git remote add origin https://github.com/maxxer79/comicseller.git
 git push -u origin main
