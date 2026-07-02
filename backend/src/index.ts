@@ -22,9 +22,9 @@ app.use("/", healthRouter);
 app.use("/", authRouter);
 app.use("/", adminRouter);
 
-app.use("/", requireAuth, comicsRouter);
-app.use("/", requireAuth, pricingRouter);
-
+// Serve the frontend (SPA) BEFORE the protected API routes so the auth guard
+// never intercepts page loads. The catch-all defers API prefixes to the
+// routers below via next().
 if (config.serveFrontend) {
   const frontendDir = path.resolve(process.cwd(), config.frontendDir);
   app.use(express.static(frontendDir));
@@ -47,6 +47,9 @@ if (config.serveFrontend) {
     res.json({ name: "Comicseller API", version: "0.2.0" });
   });
 }
+
+app.use("/", requireAuth, comicsRouter);
+app.use("/", requireAuth, pricingRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ error: "Not found" });
