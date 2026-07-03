@@ -22,8 +22,10 @@ app.use("/", healthRouter);
 app.use("/", authRouter);
 app.use("/", adminRouter);
 
-app.use("/", requireAuth, comicsRouter);
-app.use("/", requireAuth, pricingRouter);
+app.use("/comics", requireAuth);
+app.use("/import", requireAuth);
+app.use("/", comicsRouter);
+app.use("/", pricingRouter);
 
 if (config.serveFrontend) {
   const frontendDir = path.resolve(process.cwd(), config.frontendDir);
@@ -44,7 +46,7 @@ if (config.serveFrontend) {
   });
 } else {
   app.get("/", (_req, res) => {
-    res.json({ name: "Comicseller API", version: "0.2.0" });
+    res.json({ name: "Comicseller API", version: "0.2.4" });
   });
 }
 
