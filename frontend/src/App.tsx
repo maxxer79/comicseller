@@ -5,6 +5,7 @@ import { api, type VersionInfo } from "./api";
 import { Login } from "./pages/Login";
 import { Dashboard } from "./pages/Dashboard";
 import { Labels } from "./pages/Labels";
+import { Sales } from "./pages/Sales";
 import { Inventory } from "./pages/Inventory";
 import { Intake } from "./pages/Intake";
 import { ComicDetail } from "./pages/ComicDetail";
@@ -40,6 +41,7 @@ function Header({ version }: { version?: VersionInfo }) {
         <NavLink to="/intake">Add comic</NavLink>
         <NavLink to="/import">Import</NavLink>
         <NavLink to="/labels">Labels</NavLink>
+        <NavLink to="/sales">Sales</NavLink>
         {user?.role === "ADMIN" && <NavLink to="/admin">Admin</NavLink>}
       </nav>
       <div className="header-right">
@@ -89,6 +91,7 @@ export function App() {
           <Route path="/intake" element={<Intake />} />
           <Route path="/import" element={<ImportCsv />} />
           <Route path="/labels" element={<Labels />} />
+          <Route path="/sales" element={<Sales />} />
           <Route path="/comics/:id" element={<ComicDetail />} />
           <Route
             path="/admin"

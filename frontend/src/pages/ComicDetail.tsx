@@ -6,6 +6,7 @@ import { Progress } from "../components/Spinner";
 import { BarcodeScanner } from "../components/BarcodeScanner";
 import { PhotoManager } from "../components/PhotoManager";
 import { ProfitCalculator } from "../components/ProfitCalculator";
+import { SaleManager } from "../components/SaleManager";
 
 function money(v: string | null): string {
   return v === null ? "—" : `$${Number(v).toFixed(2)}`;
@@ -58,6 +59,7 @@ export function ComicDetail() {
         year: c.year,
         upc: c.upc,
         location: c.location,
+        costBasis: c.costBasis,
         keyIssue: c.keyIssue,
         keyNotes: c.keyNotes,
         grade: c.grade,
@@ -310,6 +312,16 @@ export function ComicDetail() {
                   placeholder="e.g. Box 12 / Shelf A"
                 />
               </div>
+              <div className="col" style={{ maxWidth: 160 }}>
+                <label>Cost basis ($)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={form.costBasis ?? ""}
+                  onChange={(e) => set("costBasis", e.target.value ? Number(e.target.value) : null)}
+                  placeholder="what you paid"
+                />
+              </div>
             </div>
             <div className="row">
               <div className="col" style={{ maxWidth: 160 }}>
@@ -441,6 +453,8 @@ export function ComicDetail() {
               <p className="muted">Add price comps to generate a recommendation.</p>
             )}
           </div>
+
+          <SaleManager comic={comic} onChange={load} />
 
           <ProfitCalculator recommendedPrice={comic.recommendedPrice} />
 

@@ -197,6 +197,7 @@ comicsRouter.patch("/comics/:id", async (req, res, next) => {
     if (b.variant === null || typeof b.variant === "string") data.variant = b.variant;
     if (b.upc === null || typeof b.upc === "string") data.upc = b.upc;
     if (b.location === null || typeof b.location === "string") data.location = b.location;
+    if (b.costBasis === null || typeof b.costBasis === "number") data.costBasis = b.costBasis;
     if (b.year === null || typeof b.year === "number") data.year = b.year;
     if (typeof b.keyIssue === "boolean") data.keyIssue = b.keyIssue;
     if (b.keyNotes === null || typeof b.keyNotes === "string") data.keyNotes = b.keyNotes;
@@ -221,6 +222,64 @@ comicsRouter.patch("/comics/:id", async (req, res, next) => {
     const comic = await prisma.comic.update({
       where: { id: req.params.id },
       data,
+      include: comicInclude,
+    });
+    res.json(comic);
+  } catch (err) {
+    if ((err as { code?: string }).code === "P2025") {
+      return res.status(404).json({ error: "Comic not found" });
+    }
+    next(err);
+  }
+});
+
+comicsRouter.post("/comics/:id/sell", async (req, res, next) => {
+  try {
+    const comic = await prisma.comic.findUnique({ where: { id: req.params.id } });
+    if (!comic) return res.status(404).json({ error: "Comic not found" });
+
+    const b = req.body ?? {};
+    const soldPrice = Number(b.soldPrice);
+    if (!Number.isFinite(soldPrice) || soldPrice < 0) {
+      return res.status(400).json({ error: "soldPrice (number) is required" });
+    }
+    const settings = await prisma.settings.upsert({
+      where: { id: "default" },
+      update: {},
+      create: { id: "default" },
+    });
+    const shippingCharged = Number.isFinite(Number(b.shippingCharged))
+      ? Number(b.shippingCharged)
+      : settings.shippingCharged;
+    const shippingCost = Number.isFinite(Number(b.shippingCost))
+      ? Number(b.shippingCost)
+      : settings.shippingCost;
+    const costBasis = Number.isFinite(Number(b.costBasis))
+      ? Number(b.costBasis)
+      : comic.costBasis ?? 0;
+
+    const gross = soldPrice + shippingCharged;
+    const fee = gross * (settings.feePercent / 100) + settings.perOrderFee;
+    const soldNet = Math.round((gross - fee - shippingCost) * 100) / 100;
+    const soldProfit = Math.round((soldNet - costBasis) * 100) / 100;
+    const soldAt = b.soldAt ? new Date(b.soldAt) : new Date();
+
+    const updated = await prisma.comic.update({
+      where: { id: comic.id },
+      data: { soldPrice, soldNet, soldProfit, soldAt, costBasis, status: "SOLD" },
+      include: comicInclude,
+    });
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
+comicsRouter.post("/comics/:id/unsell", async (req, res, next) => {
+  try {
+    const comic = await prisma.comic.update({
+      where: { id: req.params.id },
+      data: { soldPrice: null, soldNet: null, soldProfit: null, soldAt: null, status: "READY" },
       include: comicInclude,
     });
     res.json(comic);

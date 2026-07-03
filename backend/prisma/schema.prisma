@@ -69,6 +69,13 @@ model Comic {
   recommendedAction  SellAction? // SELL_NOW vs HOLD ("cook longer")
   recommendationNote String?
 
+  // --- Cost & sale (P&L) ---
+  costBasis  Float?    // what you paid for this copy
+  soldPrice  Float?    // actual sale price
+  soldNet    Float?    // net proceeds after fees + shipping
+  soldProfit Float?    // soldNet - costBasis
+  soldAt     DateTime?
+
   // Relations
   photos         Photo[]
   priceSnapshots PriceSnapshot[]

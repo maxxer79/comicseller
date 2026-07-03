@@ -23,6 +23,7 @@ export interface Comic {
   graded: boolean; gradingCompany: string | null; status: ComicStatus;
   recommendedPrice: string | null; recommendedFormat: ListingFormat | null;
   recommendedAction: SellAction | null; recommendationNote: string | null;
+  costBasis: number | null; soldPrice: number | null; soldNet: number | null; soldProfit: number | null; soldAt: string | null;
   photos: Photo[]; priceSnapshots: PriceSnapshot[]; listing: unknown | null;
 }
 export interface Identification {
@@ -55,6 +56,11 @@ export interface StatsOverview {
 export interface Settings {
   id: string; updatedAt: string;
   feePercent: number; perOrderFee: number; shippingCost: number; shippingCharged: number;
+}
+export interface Pnl {
+  unitsSold: number; revenue: number; net: number; cost: number; profit: number;
+  months: { month: string; units: number; revenue: number; net: number; profit: number }[];
+  recent: { id: string; title: string; issueNumber: string | null; soldPrice: number; soldProfit: number; soldAt: string | null }[];
 }
 
 const TOKEN_KEY = "comicseller.token";
@@ -159,6 +165,11 @@ export const api = {
     return request(`/comics/${id}/price`, jsonInit("POST", body));
   },
   async recommend(id: string): Promise<Comic> { return request(`/comics/${id}/recommend`, { method: "POST" }); },
+  async sell(id: string, body: { soldPrice: number; shippingCharged?: number; shippingCost?: number; costBasis?: number; soldAt?: string }): Promise<Comic> {
+    return request(`/comics/${id}/sell`, jsonInit("POST", body));
+  },
+  async unsell(id: string): Promise<Comic> { return request(`/comics/${id}/unsell`, { method: "POST" }); },
+  async pnl(): Promise<Pnl> { return request("/stats/pnl"); },
   async deleteComic(id: string): Promise<void> { return request(`/comics/${id}`, { method: "DELETE" }); },
   async importCsv(file: File, dryRun: boolean): Promise<{
     dryRun?: boolean; willImport?: number; imported?: number;

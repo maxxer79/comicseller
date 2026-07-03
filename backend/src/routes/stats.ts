@@ -111,3 +111,35 @@ statsRouter.get("/stats/locations", async (_req, res, next) => {
     next(err);
   }
 });
+
+statsRouter.get("/stats/pnl", async (_req, res, next) => {
+  try {
+    const sold = await prisma.comic.findMany({
+      where: { status: "SOLD" },
+      select: {
+        id: true, title: true, issueNumber: true,
+        soldPrice: true, soldNet: true, soldProfit: true, costBasis: true, soldAt: true,
+      },
+      orderBy: { soldAt: "desc" },
+    });
+    const n = (v: unknown): number => (v == null ? 0 : Number(v));
+    let revenue = 0, net = 0, cost = 0, profit = 0;
+    const monthsMap: Record<string, { units: number; revenue: number; net: number; profit: number }> = {};
+    for (const c of sold as Array<{ soldPrice: number | null; soldNet: number | null; soldProfit: number | null; costBasis: number | null; soldAt: Date | string | null }>) {
+      revenue += n(c.soldPrice); net += n(c.soldNet); cost += n(c.costBasis); profit += n(c.soldProfit);
+      const d = c.soldAt ? new Date(c.soldAt) : null;
+      const key = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` : "unknown";
+      const m = (monthsMap[key] ||= { units: 0, revenue: 0, net: 0, profit: 0 });
+      m.units += 1; m.revenue += n(c.soldPrice); m.net += n(c.soldNet); m.profit += n(c.soldProfit);
+    }
+    const months = Object.entries(monthsMap)
+      .map(([month, v]) => ({ month, ...v }))
+      .sort((a, b) => b.month.localeCompare(a.month));
+    const recent = (sold as Array<{ id: string; title: string; issueNumber: string | null; soldPrice: number | null; soldProfit: number | null; soldAt: Date | string | null }>)
+      .slice(0, 25)
+      .map((c) => ({ id: c.id, title: c.title, issueNumber: c.issueNumber, soldPrice: n(c.soldPrice), soldProfit: n(c.soldProfit), soldAt: c.soldAt }));
+    res.json({ unitsSold: sold.length, revenue, net, cost, profit, months, recent });
+  } catch (err) {
+    next(err);
+  }
+});
