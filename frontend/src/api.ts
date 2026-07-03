@@ -18,7 +18,7 @@ export interface PriceSnapshot {
 export interface Comic {
   id: string; sku: string; createdAt: string; updatedAt: string;
   title: string; issueNumber: string | null; publisher: string | null;
-  variant: string | null; year: number | null; upc: string | null; keyIssue: boolean; keyNotes: string | null;
+  variant: string | null; year: number | null; upc: string | null; location: string | null; keyIssue: boolean; keyNotes: string | null;
   aiSuggestedGrade: number | null; grade: number | null; condition: string | null;
   graded: boolean; gradingCompany: string | null; status: ComicStatus;
   recommendedPrice: string | null; recommendedFormat: ListingFormat | null;
@@ -101,9 +101,16 @@ export const api = {
     return request(`/admin/users/${id}`, jsonInit("PATCH", body));
   },
   async deleteUser(id: string): Promise<void> { return request(`/admin/users/${id}`, { method: "DELETE" }); },
-  async listComics(status?: string): Promise<{ total: number; items: Comic[] }> {
-    const q = status ? `?status=${encodeURIComponent(status)}` : "";
+  async listComics(status?: string, location?: string): Promise<{ total: number; items: Comic[] }> {
+    const qs = new URLSearchParams();
+    if (status) qs.set("status", status);
+    if (location) qs.set("location", location);
+    const q = qs.toString() ? `?${qs.toString()}` : "";
     return request(`/comics${q}`);
+  },
+  async locations(): Promise<{ location: string; count: number }[]> {
+    const r = await request<{ locations: { location: string; count: number }[] }>("/stats/locations");
+    return r.locations;
   },
   async getComic(id: string): Promise<Comic> { return request(`/comics/${id}`); },
   async createComic(file: File | null, title?: string, upc?: string): Promise<Comic> {

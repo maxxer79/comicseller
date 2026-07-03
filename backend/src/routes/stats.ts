@@ -94,3 +94,20 @@ statsRouter.get("/stats/overview", async (_req, res, next) => {
     next(err);
   }
 });
+
+statsRouter.get("/stats/locations", async (_req, res, next) => {
+  try {
+    const rows = await prisma.comic.groupBy({
+      by: ["location"],
+      _count: { _all: true },
+      where: { location: { not: null } },
+    });
+    const locations = (rows as Array<{ location: string | null; _count: { _all: number } }>)
+      .filter((r) => r.location)
+      .map((r) => ({ location: r.location as string, count: r._count._all }))
+      .sort((a, b) => a.location.localeCompare(b.location));
+    res.json({ locations });
+  } catch (err) {
+    next(err);
+  }
+});

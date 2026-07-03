@@ -48,6 +48,7 @@ model Comic {
   variant     String? // e.g. "Cover B", "Newsstand", "2nd print"
   year        Int?
   upc         String? // scanned barcode (UPC-A, with optional 5-digit supplement)
+  location    String? // physical location: box / shelf / long-box label
   keyIssue    Boolean @default(false) // first appearance, major event, etc.
   keyNotes    String? // why it's a key (e.g. "1st app. of X")
 

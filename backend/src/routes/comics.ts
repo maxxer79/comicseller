@@ -196,6 +196,7 @@ comicsRouter.patch("/comics/:id", async (req, res, next) => {
     if (b.publisher === null || typeof b.publisher === "string") data.publisher = b.publisher;
     if (b.variant === null || typeof b.variant === "string") data.variant = b.variant;
     if (b.upc === null || typeof b.upc === "string") data.upc = b.upc;
+    if (b.location === null || typeof b.location === "string") data.location = b.location;
     if (b.year === null || typeof b.year === "number") data.year = b.year;
     if (typeof b.keyIssue === "boolean") data.keyIssue = b.keyIssue;
     if (b.keyNotes === null || typeof b.keyNotes === "string") data.keyNotes = b.keyNotes;
@@ -237,10 +238,12 @@ comicsRouter.get("/comics", async (req, res, next) => {
     const skip = Math.max(Number(req.query.offset ?? 0), 0);
     const status = typeof req.query.status === "string" ? req.query.status : undefined;
     const upc = typeof req.query.upc === "string" ? req.query.upc : undefined;
+    const location = typeof req.query.location === "string" ? req.query.location : undefined;
 
     const where: Record<string, unknown> = {};
     if (status) where.status = status;
     if (upc) where.upc = upc;
+    if (location) where.location = location;
 
     const [items, total] = await Promise.all([
       prisma.comic.findMany({

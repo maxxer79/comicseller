@@ -56,6 +56,7 @@ export function ComicDetail() {
         variant: c.variant,
         year: c.year,
         upc: c.upc,
+        location: c.location,
         keyIssue: c.keyIssue,
         keyNotes: c.keyNotes,
         grade: c.grade,
@@ -297,6 +298,16 @@ export function ComicDetail() {
                     📷 Scan
                   </button>
                 </div>
+              </div>
+            </div>
+            <div className="row">
+              <div className="col" style={{ maxWidth: 260 }}>
+                <label>Box / location</label>
+                <input
+                  value={form.location ?? ""}
+                  onChange={(e) => set("location", e.target.value || null)}
+                  placeholder="e.g. Box 12 / Shelf A"
+                />
               </div>
             </div>
             <div className="row">

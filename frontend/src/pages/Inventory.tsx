@@ -27,6 +27,8 @@ function actionBadge(c: Comic) {
 
 export function Inventory() {
   const [status, setStatus] = useState<ComicStatus | "ALL">("ALL");
+  const [location, setLocation] = useState<string>("");
+  const [locations, setLocations] = useState<{ location: string; count: number }[]>([]);
   const [data, setData] = useState<{ total: number; items: Comic[] }>();
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(false);
@@ -35,7 +37,7 @@ export function Inventory() {
     setLoading(true);
     setError(undefined);
     try {
-      const res = await api.listComics(status === "ALL" ? undefined : status);
+      const res = await api.listComics(status === "ALL" ? undefined : status, location || undefined);
       setData(res);
     } catch (e) {
       setError((e as Error).message);
@@ -45,9 +47,13 @@ export function Inventory() {
   }
 
   useEffect(() => {
+    api.locations().then(setLocations).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]);
+  }, [status, location]);
 
   return (
     <div>
@@ -66,10 +72,24 @@ export function Inventory() {
               ))}
             </select>
           </div>
+          <div className="col" style={{ maxWidth: 220 }}>
+            <label>Filter by location</label>
+            <select value={location} onChange={(e) => setLocation(e.target.value)}>
+              <option value="">All locations</option>
+              {locations.map((l) => (
+                <option key={l.location} value={l.location}>
+                  {l.location} ({l.count})
+                </option>
+              ))}
+            </select>
+          </div>
           <div>
             <button className="secondary" onClick={load} disabled={loading}>
               {loading ? "Loading…" : "Refresh"}
             </button>
+            <Link to="/labels">
+              <button className="secondary">🖨 Labels</button>
+            </Link>
             <Link to="/intake">
               <button>+ Add comic</button>
             </Link>
@@ -88,6 +108,7 @@ export function Inventory() {
               <th>Title</th>
               <th>Grade</th>
               <th>Status</th>
+              <th>Location</th>
               <th className="right">Rec. price</th>
               <th>Format</th>
               <th>Action</th>
@@ -119,6 +140,7 @@ export function Inventory() {
                   <td>
                     <span className="badge">{c.status}</span>
                   </td>
+                  <td className="muted">{c.location ?? "—"}</td>
                   <td className="right">{money(c.recommendedPrice)}</td>
                   <td>{c.recommendedFormat === "AUCTION" ? "Auction" : c.recommendedFormat === "BUY_IT_NOW" ? "BIN" : "—"}</td>
                   <td>{actionBadge(c)}</td>
@@ -127,7 +149,7 @@ export function Inventory() {
             })}
             {data && data.items.length === 0 && (
               <tr>
-                <td colSpan={7} className="muted">
+                <td colSpan={8} className="muted">
                   No comics yet. Add one or import a CSV.
                 </td>
               </tr>
