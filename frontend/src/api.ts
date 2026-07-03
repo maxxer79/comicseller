@@ -41,6 +41,17 @@ export interface UpcLookupResult {
   found: boolean; query: string; match: UpcMatch | null;
   candidates: UpcMatch[]; source: "GCD" | "NONE"; datasetSize: number;
 }
+export interface StatsOverview {
+  totalComics: number; pricedComics: number; unpricedComics: number; keyIssues: number;
+  totalValue: number; readyValue: number;
+  statusCounts: Record<string, number>;
+  actionCounts: Record<string, number>;
+  formatCounts: Record<string, number>;
+  topComics: {
+    id: string; title: string; issueNumber: string | null;
+    recommendedPrice: number; recommendedFormat: string | null; recommendedAction: string | null;
+  }[];
+}
 
 const TOKEN_KEY = "comicseller.token";
 let authToken: string | null = localStorage.getItem(TOKEN_KEY);
@@ -81,6 +92,7 @@ export const api = {
   },
   async me(): Promise<AuthUser> { return request("/auth/me"); },
   async version(): Promise<VersionInfo> { return request("/version"); },
+  async stats(): Promise<StatsOverview> { return request("/stats/overview"); },
   async listUsers(): Promise<{ users: AdminUser[] }> { return request("/admin/users"); },
   async createUser(body: { email: string; password: string; name?: string; role?: Role }): Promise<AdminUser> {
     return request("/admin/users", jsonInit("POST", body));

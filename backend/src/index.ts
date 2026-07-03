@@ -8,6 +8,7 @@ import { pricingRouter } from "./routes/pricing.js";
 import { authRouter } from "./routes/auth.js";
 import { adminRouter } from "./routes/admin.js";
 import { lookupRouter } from "./routes/lookup.js";
+import { statsRouter } from "./routes/stats.js";
 import { requireAuth } from "./middleware/auth.js";
 import { seedAdmin } from "./services/auth.js";
 import { storageRoot } from "./services/storage.js";
@@ -26,9 +27,11 @@ app.use("/", adminRouter);
 app.use("/comics", requireAuth);
 app.use("/import", requireAuth);
 app.use("/lookup", requireAuth);
+app.use("/stats", requireAuth);
 app.use("/", comicsRouter);
 app.use("/", pricingRouter);
 app.use("/", lookupRouter);
+app.use("/", statsRouter);
 
 if (config.serveFrontend) {
   const frontendDir = path.resolve(process.cwd(), config.frontendDir);
@@ -38,6 +41,7 @@ if (config.serveFrontend) {
       req.path.startsWith("/comics") ||
       req.path.startsWith("/import") ||
       req.path.startsWith("/lookup") ||
+      req.path.startsWith("/stats") ||
       req.path.startsWith("/auth") ||
       req.path.startsWith("/admin") ||
       req.path.startsWith("/photos") ||
@@ -50,7 +54,7 @@ if (config.serveFrontend) {
   });
 } else {
   app.get("/", (_req, res) => {
-    res.json({ name: "Comicseller API", version: "0.2.5" });
+    res.json({ name: "Comicseller API", version: "0.2.6" });
   });
 }
 
