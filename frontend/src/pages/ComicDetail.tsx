@@ -4,6 +4,7 @@ import { api, type Comic, type Trend } from "../api";
 import { buildEbayTitle, buildEbayDescription } from "../lib/ebay";
 import { Progress } from "../components/Spinner";
 import { BarcodeScanner } from "../components/BarcodeScanner";
+import { PhotoManager } from "../components/PhotoManager";
 
 function money(v: string | null): string {
   return v === null ? "—" : `$${Number(v).toFixed(2)}`;
@@ -210,13 +211,9 @@ export function ComicDetail() {
       )}
 
       <div className="row">
-        <div className="col" style={{ maxWidth: 220 }}>
+        <div className="col" style={{ maxWidth: 240 }}>
           <div className="card">
-            {primary?.url ? (
-              <img className="cover" src={primary.url} alt="" />
-            ) : (
-              <div className="cover" style={{ height: 260 }} />
-            )}
+            <PhotoManager comicId={comic.id} photos={comic.photos} onChange={load} />
             <div className="spacer" />
             <button className="secondary" onClick={runIdentify} disabled={busy || !primary}>
               {busy ? "Working…" : "Identify with AI"}

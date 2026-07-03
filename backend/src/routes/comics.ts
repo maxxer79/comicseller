@@ -10,10 +10,9 @@ import {
 
 export const comicsRouter = Router();
 
-// Keep uploads in memory; the storage service decides where bytes land.
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 15 * 1024 * 1024 }, // 15 MB/photo
+  limits: { fileSize: 15 * 1024 * 1024 },
 });
 
 const comicInclude = {
@@ -22,11 +21,8 @@ const comicInclude = {
   listing: true,
 } as const;
 
-/**
- * POST /comics
- * Create a new intake. Optionally accepts an initial photo (field "photo")
- * and a scanned UPC. Title defaults to "Untitled" until confirmed.
- */
+const PHOTO_KINDS = ["FRONT", "BACK", "DETAIL", "SLAB"];
+
 comicsRouter.post("/comics", upload.single("photo"), async (req, res, next) => {
   try {
     const title =
@@ -41,11 +37,7 @@ comicsRouter.post("/comics", upload.single("photo"), async (req, res, next) => {
     const comic = await prisma.comic.create({ data: { title, upc } });
 
     if (req.file) {
-      const saved = await savePhoto(
-        req.file.buffer,
-        req.file.mimetype,
-        req.file.originalname
-      );
+      const saved = await savePhoto(req.file.buffer, req.file.mimetype, req.file.originalname);
       await prisma.photo.create({
         data: {
           comicId: comic.id,
@@ -59,66 +51,96 @@ comicsRouter.post("/comics", upload.single("photo"), async (req, res, next) => {
       });
     }
 
-    const full = await prisma.comic.findUnique({
-      where: { id: comic.id },
-      include: comicInclude,
-    });
+    const full = await prisma.comic.findUnique({ where: { id: comic.id }, include: comicInclude });
     res.status(201).json(full);
   } catch (err) {
     next(err);
   }
 });
 
-/**
- * POST /comics/:id/photos
- * Attach an additional photo to an existing comic.
- */
-comicsRouter.post(
-  "/comics/:id/photos",
-  upload.single("photo"),
-  async (req, res, next) => {
-    try {
-      const comic = await prisma.comic.findUnique({ where: { id: req.params.id } });
-      if (!comic) return res.status(404).json({ error: "Comic not found" });
-      if (!req.file) return res.status(400).json({ error: "No photo uploaded" });
+comicsRouter.post("/comics/:id/photos", upload.single("photo"), async (req, res, next) => {
+  try {
+    const comic = await prisma.comic.findUnique({
+      where: { id: req.params.id },
+      include: { photos: true },
+    });
+    if (!comic) return res.status(404).json({ error: "Comic not found" });
+    if (!req.file) return res.status(400).json({ error: "No photo uploaded" });
 
-      const kind = ["FRONT", "BACK", "DETAIL", "SLAB"].includes(req.body.kind)
-        ? req.body.kind
-        : "DETAIL";
-
-      const saved = await savePhoto(
-        req.file.buffer,
-        req.file.mimetype,
-        req.file.originalname
-      );
-      const photo = await prisma.photo.create({
-        data: {
-          comicId: comic.id,
-          storageKey: saved.storageKey,
-          url: saved.url,
-          contentType: saved.contentType,
-          bytes: saved.bytes,
-          kind,
-        },
-      });
-      res.status(201).json(photo);
-    } catch (err) {
-      next(err);
-    }
+    const kind = PHOTO_KINDS.includes(req.body.kind) ? req.body.kind : "DETAIL";
+    const saved = await savePhoto(req.file.buffer, req.file.mimetype, req.file.originalname);
+    const photo = await prisma.photo.create({
+      data: {
+        comicId: comic.id,
+        storageKey: saved.storageKey,
+        url: saved.url,
+        contentType: saved.contentType,
+        bytes: saved.bytes,
+        kind,
+        isPrimary: comic.photos.length === 0,
+      },
+    });
+    res.status(201).json(photo);
+  } catch (err) {
+    next(err);
   }
-);
+});
 
-/**
- * POST /comics/:id/identify
- * Run vision identification on the comic's primary (or first) photo.
- * Stores AI suggestions WITHOUT overwriting fields you've already confirmed.
- */
+comicsRouter.patch("/comics/:id/photos/:photoId", async (req, res, next) => {
+  try {
+    const photo = await prisma.photo.findFirst({
+      where: { id: req.params.photoId, comicId: req.params.id },
+    });
+    if (!photo) return res.status(404).json({ error: "Photo not found" });
+
+    const b = req.body ?? {};
+    const data: Record<string, unknown> = {};
+    if (typeof b.isPrimary === "boolean") data.isPrimary = b.isPrimary;
+    if (typeof b.kind === "string" && PHOTO_KINDS.includes(b.kind)) data.kind = b.kind;
+
+    if (data.isPrimary === true) {
+      await prisma.photo.updateMany({ where: { comicId: req.params.id }, data: { isPrimary: false } });
+    }
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ error: "No valid fields to update" });
+    }
+    const updated = await prisma.photo.update({ where: { id: photo.id }, data });
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
+comicsRouter.delete("/comics/:id/photos/:photoId", async (req, res, next) => {
+  try {
+    const photo = await prisma.photo.findFirst({
+      where: { id: req.params.photoId, comicId: req.params.id },
+    });
+    if (!photo) return res.status(404).json({ error: "Photo not found" });
+
+    await removePhoto(photo.storageKey);
+    await prisma.photo.delete({ where: { id: photo.id } });
+
+    if (photo.isPrimary) {
+      const nextPhoto = await prisma.photo.findFirst({
+        where: { comicId: req.params.id },
+        orderBy: { createdAt: "asc" },
+      });
+      if (nextPhoto) {
+        await prisma.photo.update({ where: { id: nextPhoto.id }, data: { isPrimary: true } });
+      }
+    }
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
+
 comicsRouter.post("/comics/:id/identify", async (req, res, next) => {
   try {
     if (!isVisionConfigured()) {
       return res.status(503).json({
-        error:
-          "Vision not configured. Set ANTHROPIC_API_KEY (or VISION_MOCK=1 to test).",
+        error: "Vision not configured. Set ANTHROPIC_API_KEY (or VISION_MOCK=1 to test).",
       });
     }
 
@@ -129,13 +151,9 @@ comicsRouter.post("/comics/:id/identify", async (req, res, next) => {
     if (!comic) return res.status(404).json({ error: "Comic not found" });
 
     const photo =
-      comic.photos.find((p: { isPrimary: boolean }) => p.isPrimary) ??
-      comic.photos[0];
-    if (!photo) {
-      return res.status(400).json({ error: "Comic has no photo to identify" });
-    }
+      comic.photos.find((p: { isPrimary: boolean }) => p.isPrimary) ?? comic.photos[0];
+    if (!photo) return res.status(400).json({ error: "Comic has no photo to identify" });
 
-    // Read the stored file back and base64-encode for the vision API.
     const { absolutePathFor } = await import("../services/storage.js");
     const { promises: fs } = await import("node:fs");
     const bytes = await fs.readFile(absolutePathFor(photo.storageKey));
@@ -143,7 +161,6 @@ comicsRouter.post("/comics/:id/identify", async (req, res, next) => {
 
     const result = await identifyComic(base64, photo.contentType ?? "image/jpeg");
 
-    // Save the suggestion. Grade goes ONLY to aiSuggestedGrade — never `grade`.
     const updated = await prisma.comic.update({
       where: { id: comic.id },
       data: {
@@ -169,33 +186,22 @@ comicsRouter.post("/comics/:id/identify", async (req, res, next) => {
   }
 });
 
-/**
- * PATCH /comics/:id
- * Confirm / edit metadata and the confirmed grade (the human "you confirm" step).
- */
 comicsRouter.patch("/comics/:id", async (req, res, next) => {
   try {
     const b = req.body ?? {};
     const data: Record<string, unknown> = {};
 
     if (typeof b.title === "string") data.title = b.title.trim();
-    if (b.issueNumber === null || typeof b.issueNumber === "string")
-      data.issueNumber = b.issueNumber;
-    if (b.publisher === null || typeof b.publisher === "string")
-      data.publisher = b.publisher;
-    if (b.variant === null || typeof b.variant === "string")
-      data.variant = b.variant;
+    if (b.issueNumber === null || typeof b.issueNumber === "string") data.issueNumber = b.issueNumber;
+    if (b.publisher === null || typeof b.publisher === "string") data.publisher = b.publisher;
+    if (b.variant === null || typeof b.variant === "string") data.variant = b.variant;
     if (b.upc === null || typeof b.upc === "string") data.upc = b.upc;
     if (b.year === null || typeof b.year === "number") data.year = b.year;
     if (typeof b.keyIssue === "boolean") data.keyIssue = b.keyIssue;
-    if (b.keyNotes === null || typeof b.keyNotes === "string")
-      data.keyNotes = b.keyNotes;
+    if (b.keyNotes === null || typeof b.keyNotes === "string") data.keyNotes = b.keyNotes;
     if (typeof b.graded === "boolean") data.graded = b.graded;
-    if (b.gradingCompany === null || typeof b.gradingCompany === "string")
-      data.gradingCompany = b.gradingCompany;
-
-    if (b.condition === null || typeof b.condition === "string")
-      data.condition = b.condition;
+    if (b.gradingCompany === null || typeof b.gradingCompany === "string") data.gradingCompany = b.gradingCompany;
+    if (b.condition === null || typeof b.condition === "string") data.condition = b.condition;
 
     if (b.grade === null || typeof b.grade === "number") {
       if (typeof b.grade === "number" && (b.grade < 0.5 || b.grade > 10)) {
@@ -204,6 +210,8 @@ comicsRouter.patch("/comics/:id", async (req, res, next) => {
       data.grade = b.grade;
       if (typeof b.grade === "number") data.status = "IDENTIFIED";
     }
+
+    if (typeof b.status === "string") data.status = b.status;
 
     if (Object.keys(data).length === 0) {
       return res.status(400).json({ error: "No valid fields to update" });
@@ -223,15 +231,11 @@ comicsRouter.patch("/comics/:id", async (req, res, next) => {
   }
 });
 
-/**
- * GET /comics — list with filtering by status and/or upc, and pagination.
- */
 comicsRouter.get("/comics", async (req, res, next) => {
   try {
     const take = Math.min(Number(req.query.limit ?? 50), 200);
     const skip = Math.max(Number(req.query.offset ?? 0), 0);
-    const status =
-      typeof req.query.status === "string" ? req.query.status : undefined;
+    const status = typeof req.query.status === "string" ? req.query.status : undefined;
     const upc = typeof req.query.upc === "string" ? req.query.upc : undefined;
 
     const where: Record<string, unknown> = {};
@@ -254,7 +258,6 @@ comicsRouter.get("/comics", async (req, res, next) => {
   }
 });
 
-/** GET /comics/:id — full detail. */
 comicsRouter.get("/comics/:id", async (req, res, next) => {
   try {
     const comic = await prisma.comic.findUnique({
@@ -268,7 +271,6 @@ comicsRouter.get("/comics/:id", async (req, res, next) => {
   }
 });
 
-/** DELETE /comics/:id — remove a comic and its photo files. */
 comicsRouter.delete("/comics/:id", async (req, res, next) => {
   try {
     const comic = await prisma.comic.findUnique({
@@ -277,9 +279,7 @@ comicsRouter.delete("/comics/:id", async (req, res, next) => {
     });
     if (!comic) return res.status(404).json({ error: "Comic not found" });
 
-    await Promise.all(
-      comic.photos.map((p: { storageKey: string }) => removePhoto(p.storageKey))
-    );
+    await Promise.all(comic.photos.map((p: { storageKey: string }) => removePhoto(p.storageKey)));
     await prisma.comic.delete({ where: { id: comic.id } });
     res.status(204).end();
   } catch (err) {

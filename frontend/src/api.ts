@@ -125,6 +125,12 @@ export const api = {
     if (kind) form.append("kind", kind);
     return request(`/comics/${id}/photos`, { method: "POST", body: form });
   },
+  async updatePhoto(comicId: string, photoId: string, body: { isPrimary?: boolean; kind?: string }): Promise<Photo> {
+    return request(`/comics/${comicId}/photos/${photoId}`, jsonInit("PATCH", body));
+  },
+  async deletePhoto(comicId: string, photoId: string): Promise<void> {
+    return request(`/comics/${comicId}/photos/${photoId}`, { method: "DELETE" });
+  },
   async identify(id: string): Promise<{ suggestion: Identification; comic: Comic }> {
     return request(`/comics/${id}/identify`, { method: "POST" });
   },
