@@ -5,6 +5,7 @@ import { buildEbayTitle, buildEbayDescription } from "../lib/ebay";
 import { Progress } from "../components/Spinner";
 import { BarcodeScanner } from "../components/BarcodeScanner";
 import { PhotoManager } from "../components/PhotoManager";
+import { ProfitCalculator } from "../components/ProfitCalculator";
 
 function money(v: string | null): string {
   return v === null ? "—" : `$${Number(v).toFixed(2)}`;
@@ -440,6 +441,8 @@ export function ComicDetail() {
               <p className="muted">Add price comps to generate a recommendation.</p>
             )}
           </div>
+
+          <ProfitCalculator recommendedPrice={comic.recommendedPrice} />
 
           <div className="card">
             <h3>eBay listing (copy &amp; paste)</h3>

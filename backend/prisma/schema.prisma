@@ -180,6 +180,19 @@ model GcdIssue {
 }
 
 // ---------------------------------------------------------------------------
+// Settings — singleton row of marketplace fee + shipping assumptions used by
+// the profit calculator. id is always "default".
+// ---------------------------------------------------------------------------
+model Settings {
+  id              String   @id @default("default")
+  updatedAt       DateTime @updatedAt
+  feePercent      Float    @default(13.25) // eBay final value fee % (incl. payment processing)
+  perOrderFee     Float    @default(0.40)  // fixed per-order fee
+  shippingCost    Float    @default(4.50)  // what it costs YOU to ship
+  shippingCharged Float    @default(0)     // what the buyer pays for shipping
+}
+
+// ---------------------------------------------------------------------------
 // Enums
 // ---------------------------------------------------------------------------
 

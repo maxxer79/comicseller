@@ -52,6 +52,10 @@ export interface StatsOverview {
     recommendedPrice: number; recommendedFormat: string | null; recommendedAction: string | null;
   }[];
 }
+export interface Settings {
+  id: string; updatedAt: string;
+  feePercent: number; perOrderFee: number; shippingCost: number; shippingCharged: number;
+}
 
 const TOKEN_KEY = "comicseller.token";
 let authToken: string | null = localStorage.getItem(TOKEN_KEY);
@@ -93,6 +97,10 @@ export const api = {
   async me(): Promise<AuthUser> { return request("/auth/me"); },
   async version(): Promise<VersionInfo> { return request("/version"); },
   async stats(): Promise<StatsOverview> { return request("/stats/overview"); },
+  async getSettings(): Promise<Settings> { return request("/settings"); },
+  async updateSettings(body: Partial<Pick<Settings, "feePercent" | "perOrderFee" | "shippingCost" | "shippingCharged">>): Promise<Settings> {
+    return request("/settings", jsonInit("PATCH", body));
+  },
   async listUsers(): Promise<{ users: AdminUser[] }> { return request("/admin/users"); },
   async createUser(body: { email: string; password: string; name?: string; role?: Role }): Promise<AdminUser> {
     return request("/admin/users", jsonInit("POST", body));

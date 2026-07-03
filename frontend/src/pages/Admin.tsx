@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { api, type AdminUser, type Role, type VersionInfo } from "../api";
+import { api, type AdminUser, type Role, type VersionInfo, type Settings } from "../api";
 import { useAuth } from "../auth";
 
 export function Admin() {
   const { user: me } = useAuth();
   const [version, setVersion] = useState<VersionInfo>();
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [settings, setSettings] = useState<Settings>();
   const [error, setError] = useState<string>();
   const [msg, setMsg] = useState<string>();
 
@@ -14,9 +15,10 @@ export function Admin() {
 
   async function load() {
     try {
-      const [v, u] = await Promise.all([api.version(), api.listUsers()]);
+      const [v, u, s] = await Promise.all([api.version(), api.listUsers(), api.getSettings()]);
       setVersion(v);
       setUsers(u.users);
+      setSettings(s);
     } catch (e) {
       setError((e as Error).message);
     }
@@ -68,6 +70,24 @@ export function Admin() {
     }
   }
 
+  async function saveSettings() {
+    if (!settings) return;
+    setError(undefined);
+    setMsg(undefined);
+    try {
+      const s = await api.updateSettings({
+        feePercent: settings.feePercent,
+        perOrderFee: settings.perOrderFee,
+        shippingCost: settings.shippingCost,
+        shippingCharged: settings.shippingCharged,
+      });
+      setSettings(s);
+      setMsg("Fees & shipping saved.");
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+
   return (
     <div>
       <h2>Admin</h2>
@@ -91,6 +111,57 @@ export function Admin() {
           <p className="muted">Loading…</p>
         )}
       </div>
+
+      {settings && (
+        <div className="card" style={{ maxWidth: 560 }}>
+          <h3>Fees &amp; shipping</h3>
+          <p className="muted" style={{ fontSize: 13 }}>
+            Used by the profit calculator on each comic.
+          </p>
+          <div className="row">
+            <div className="col">
+              <label>eBay fee %</label>
+              <input
+                type="number"
+                step="0.01"
+                value={settings.feePercent}
+                onChange={(e) => setSettings({ ...settings, feePercent: Number(e.target.value) })}
+              />
+            </div>
+            <div className="col">
+              <label>Per-order fee ($)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={settings.perOrderFee}
+                onChange={(e) => setSettings({ ...settings, perOrderFee: Number(e.target.value) })}
+              />
+            </div>
+          </div>
+          <div className="row">
+            <div className="col">
+              <label>Your shipping cost ($)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={settings.shippingCost}
+                onChange={(e) => setSettings({ ...settings, shippingCost: Number(e.target.value) })}
+              />
+            </div>
+            <div className="col">
+              <label>Shipping charged to buyer ($)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={settings.shippingCharged}
+                onChange={(e) => setSettings({ ...settings, shippingCharged: Number(e.target.value) })}
+              />
+            </div>
+          </div>
+          <div className="spacer" />
+          <button onClick={saveSettings}>Save fees</button>
+        </div>
+      )}
 
       <div className="card">
         <h3>Users</h3>
