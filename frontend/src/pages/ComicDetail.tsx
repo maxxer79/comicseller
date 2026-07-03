@@ -34,9 +34,7 @@ export function ComicDetail() {
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
 
-  // Editable metadata form
   const [form, setForm] = useState<Partial<Comic>>({});
-  // Price form
   const [price, setPrice] = useState({
     medianPrice: "",
     lowPrice: "",
@@ -185,9 +183,27 @@ export function ComicDetail() {
 
       {scanning && (
         <BarcodeScanner
-          onDetected={(code) => {
+          onDetected={async (code) => {
             set("upc", code);
             setScanning(false);
+            try {
+              const res = await api.lookupUpc(code);
+              if (res.found && res.match) {
+                const m = res.match;
+                setForm((f) => ({
+                  ...f,
+                  title: f.title && f.title !== "Untitled" ? f.title : m.series,
+                  issueNumber: f.issueNumber ?? m.number,
+                  publisher: f.publisher ?? m.publisher,
+                  year: f.year ?? m.year,
+                }));
+                setMsg(
+                  `Matched via GCD: ${m.series}${m.number ? " #" + m.number : ""} — review and save.`
+                );
+              }
+            } catch {
+              /* non-fatal */
+            }
           }}
           onClose={() => setScanning(false)}
         />
@@ -209,7 +225,6 @@ export function ComicDetail() {
         </div>
 
         <div className="col">
-          {/* --- Confirm metadata --- */}
           <div className="card">
             <h3>Details (confirm)</h3>
             {comic.aiSuggestedGrade !== null && (
@@ -333,7 +348,6 @@ export function ComicDetail() {
             </button>
           </div>
 
-          {/* --- Pricing --- */}
           <div className="card">
             <h3>Price comps</h3>
             <p className="muted" style={{ fontSize: 13 }}>
@@ -399,7 +413,6 @@ export function ComicDetail() {
             )}
           </div>
 
-          {/* --- Recommendation --- */}
           <div className="card">
             <h3>Recommendation</h3>
             {comic.recommendedPrice || comic.recommendationNote ? (
@@ -420,7 +433,6 @@ export function ComicDetail() {
             )}
           </div>
 
-          {/* --- eBay copy-paste --- */}
           <div className="card">
             <h3>eBay listing (copy &amp; paste)</h3>
             <label>Title ({ebayTitle.length}/80)</label>

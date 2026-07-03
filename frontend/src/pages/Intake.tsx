@@ -11,6 +11,7 @@ export function Intake() {
   const [title, setTitle] = useState("");
   const [upc, setUpc] = useState("");
   const [dupWarning, setDupWarning] = useState<string>();
+  const [matchNote, setMatchNote] = useState<string>();
   const [scanning, setScanning] = useState(false);
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState<string>();
@@ -26,12 +27,28 @@ export function Intake() {
     setUpc(code);
     setScanning(false);
     setDupWarning(undefined);
+    setMatchNote(undefined);
     try {
       const dup = await api.findByUpc(code);
       if (dup.total > 0) {
         setDupWarning(
           `Heads up: you already have ${dup.total} comic(s) with this UPC in inventory.`
         );
+      }
+    } catch {
+      /* non-fatal */
+    }
+    try {
+      const res = await api.lookupUpc(code);
+      if (res.found && res.match) {
+        const m = res.match;
+        setTitle((t) => t || m.series);
+        setMatchNote(
+          `Matched: ${m.series}${m.number ? " #" + m.number : ""}` +
+            `${m.publisher ? " · " + m.publisher : ""}${m.year ? " · " + m.year : ""} (GCD)`
+        );
+      } else if (res.datasetSize === 0) {
+        setMatchNote("No GCD data loaded yet — see docs/gcd-upc-lookup.md to enable auto-fill.");
       }
     } catch {
       /* non-fatal */
@@ -87,6 +104,11 @@ export function Intake() {
           {dupWarning && (
             <p className="warn" style={{ color: "var(--warn)", fontSize: 13 }}>
               {dupWarning}
+            </p>
+          )}
+          {matchNote && (
+            <p className="success" style={{ fontSize: 13 }}>
+              {matchNote}
             </p>
           )}
 

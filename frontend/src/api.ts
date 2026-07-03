@@ -33,6 +33,14 @@ export interface Identification {
 export interface AuthUser { id: string; email: string; name: string | null; role: Role; }
 export interface AdminUser extends AuthUser { active: boolean; createdAt: string; lastLoginAt: string | null; }
 export interface VersionInfo { version: string; buildSha: string; buildTime: string; nodeEnv: string; }
+export interface UpcMatch {
+  series: string; number: string | null; publisher: string | null;
+  year: number | null; barcode: string; gcdIssueId: string | null;
+}
+export interface UpcLookupResult {
+  found: boolean; query: string; match: UpcMatch | null;
+  candidates: UpcMatch[]; source: "GCD" | "NONE"; datasetSize: number;
+}
 
 const TOKEN_KEY = "comicseller.token";
 let authToken: string | null = localStorage.getItem(TOKEN_KEY);
@@ -93,9 +101,11 @@ export const api = {
     if (file) form.append("photo", file);
     return request(`/comics`, { method: "POST", body: form });
   },
-  // Find existing comics with the same UPC (duplicate check).
   async findByUpc(upc: string): Promise<{ total: number; items: Comic[] }> {
     return request(`/comics?upc=${encodeURIComponent(upc)}`);
+  },
+  async lookupUpc(upc: string): Promise<UpcLookupResult> {
+    return request(`/lookup/upc/${encodeURIComponent(upc)}`);
   },
   async addPhoto(id: string, file: File, kind?: string): Promise<Photo> {
     const form = new FormData();

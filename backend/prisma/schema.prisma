@@ -162,6 +162,23 @@ model Listing {
 }
 
 // ---------------------------------------------------------------------------
+// GcdIssue — local slice of the Grand Comics Database, indexed by barcode (UPC).
+// Powers free, offline UPC -> metadata lookup. Populate via scripts/import-gcd.mjs.
+// ---------------------------------------------------------------------------
+model GcdIssue {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  barcode    String // digits only (UPC-A, optionally with 5-digit supplement)
+  series     String
+  number     String?
+  publisher  String?
+  year       Int?
+  gcdIssueId String? // GCD's own issue id, for reference/links
+
+  @@index([barcode])
+}
+
+// ---------------------------------------------------------------------------
 // Enums
 // ---------------------------------------------------------------------------
 
