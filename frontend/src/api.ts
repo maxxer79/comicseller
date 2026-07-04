@@ -183,6 +183,12 @@ export const api = {
     return res.blob();
   },
   async deleteComic(id: string): Promise<void> { return request(`/comics/${id}`, { method: "DELETE" }); },
+  async bulkUpdate(ids: string[], set: { status?: string; location?: string | null }): Promise<{ updated: number }> {
+    return request("/comics/bulk", jsonInit("POST", { ids, set }));
+  },
+  async bulkDelete(ids: string[]): Promise<{ deleted: number }> {
+    return request("/comics/bulk-delete", jsonInit("POST", { ids }));
+  },
   async importCsv(file: File, dryRun: boolean): Promise<{
     dryRun?: boolean; willImport?: number; imported?: number;
     rowsSkipped: number; unmatchedHeaders: string[]; preview?: unknown[];

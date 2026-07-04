@@ -291,6 +291,52 @@ comicsRouter.post("/comics/:id/unsell", async (req, res, next) => {
   }
 });
 
+const BULK_STATUSES = ["INTAKE", "IDENTIFIED", "PRICED", "READY", "LISTED", "SOLD", "ARCHIVED"];
+
+/** POST /comics/bulk — set status and/or location on many comics at once. */
+comicsRouter.post("/comics/bulk", async (req, res, next) => {
+  try {
+    const ids = Array.isArray(req.body?.ids)
+      ? req.body.ids.filter((x: unknown): x is string => typeof x === "string")
+      : [];
+    if (ids.length === 0) return res.status(400).json({ error: "No ids provided" });
+
+    const set = req.body?.set ?? {};
+    const data: Record<string, unknown> = {};
+    if (set.location === null || typeof set.location === "string") data.location = set.location;
+    if (typeof set.status === "string" && BULK_STATUSES.includes(set.status)) data.status = set.status;
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ error: "Nothing to set (status or location)" });
+    }
+    const result = await prisma.comic.updateMany({
+      where: { id: { in: ids } },
+      data: data as never,
+    });
+    res.json({ updated: result.count });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** POST /comics/bulk-delete — delete many comics and their photo files. */
+comicsRouter.post("/comics/bulk-delete", async (req, res, next) => {
+  try {
+    const ids = Array.isArray(req.body?.ids)
+      ? req.body.ids.filter((x: unknown): x is string => typeof x === "string")
+      : [];
+    if (ids.length === 0) return res.status(400).json({ error: "No ids provided" });
+
+    const photos = await prisma.photo.findMany({ where: { comicId: { in: ids } } });
+    await Promise.all(
+      photos.map((p: { storageKey: string }) => removePhoto(p.storageKey))
+    );
+    const result = await prisma.comic.deleteMany({ where: { id: { in: ids } } });
+    res.json({ deleted: result.count });
+  } catch (err) {
+    next(err);
+  }
+});
+
 comicsRouter.get("/comics", async (req, res, next) => {
   try {
     const take = Math.min(Number(req.query.limit ?? 50), 200);
