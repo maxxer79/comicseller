@@ -10,6 +10,7 @@ import { adminRouter } from "./routes/admin.js";
 import { lookupRouter } from "./routes/lookup.js";
 import { statsRouter } from "./routes/stats.js";
 import { settingsRouter } from "./routes/settings.js";
+import { exportRouter } from "./routes/export.js";
 import { requireAuth } from "./middleware/auth.js";
 import { seedAdmin } from "./services/auth.js";
 import { storageRoot } from "./services/storage.js";
@@ -29,11 +30,13 @@ app.use("/comics", requireAuth);
 app.use("/import", requireAuth);
 app.use("/lookup", requireAuth);
 app.use("/stats", requireAuth);
+app.use("/export", requireAuth);
 app.use("/", comicsRouter);
 app.use("/", pricingRouter);
 app.use("/", lookupRouter);
 app.use("/", statsRouter);
 app.use("/", settingsRouter);
+app.use("/", exportRouter);
 
 if (config.serveFrontend) {
   const frontendDir = path.resolve(process.cwd(), config.frontendDir);
@@ -45,6 +48,7 @@ if (config.serveFrontend) {
       req.path.startsWith("/lookup") ||
       req.path.startsWith("/stats") ||
       req.path.startsWith("/settings") ||
+      req.path.startsWith("/export") ||
       req.path.startsWith("/auth") ||
       req.path.startsWith("/admin") ||
       req.path.startsWith("/photos") ||
@@ -57,7 +61,7 @@ if (config.serveFrontend) {
   });
 } else {
   app.get("/", (_req, res) => {
-    res.json({ name: "Comicseller API", version: "0.2.9" });
+    res.json({ name: "Comicseller API", version: "0.4.0" });
   });
 }
 

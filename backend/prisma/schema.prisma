@@ -197,6 +197,15 @@ model Settings {
   perOrderFee     Float    @default(0.40)  // fixed per-order fee
   shippingCost    Float    @default(4.50)  // what it costs YOU to ship
   shippingCharged Float    @default(0)     // what the buyer pays for shipping
+
+  // eBay bulk-CSV (Seller Hub Reports / File Exchange) export settings
+  ebayCategoryId      String @default("259104") // eBay category ID for comics
+  ebayConditionId     String @default("4000")   // eBay condition ID
+  ebayDuration        String @default("GTC")     // listing duration (GTC, Days_7…)
+  ebayShippingProfile String @default("")        // business policy name
+  ebayPaymentProfile  String @default("")        // business policy name
+  ebayReturnProfile   String @default("")        // business policy name
+  publicBaseUrl       String @default("")        // e.g. https://comics.example.com (for photo URLs)
 }
 
 // ---------------------------------------------------------------------------

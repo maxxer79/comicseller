@@ -56,6 +56,9 @@ export interface StatsOverview {
 export interface Settings {
   id: string; updatedAt: string;
   feePercent: number; perOrderFee: number; shippingCost: number; shippingCharged: number;
+  ebayCategoryId: string; ebayConditionId: string; ebayDuration: string;
+  ebayShippingProfile: string; ebayPaymentProfile: string; ebayReturnProfile: string;
+  publicBaseUrl: string;
 }
 export interface Pnl {
   unitsSold: number; revenue: number; net: number; cost: number; profit: number;
@@ -104,7 +107,7 @@ export const api = {
   async version(): Promise<VersionInfo> { return request("/version"); },
   async stats(): Promise<StatsOverview> { return request("/stats/overview"); },
   async getSettings(): Promise<Settings> { return request("/settings"); },
-  async updateSettings(body: Partial<Pick<Settings, "feePercent" | "perOrderFee" | "shippingCost" | "shippingCharged">>): Promise<Settings> {
+  async updateSettings(body: Partial<Omit<Settings, "id" | "updatedAt">>): Promise<Settings> {
     return request("/settings", jsonInit("PATCH", body));
   },
   async listUsers(): Promise<{ users: AdminUser[] }> { return request("/admin/users"); },
@@ -170,6 +173,15 @@ export const api = {
   },
   async unsell(id: string): Promise<Comic> { return request(`/comics/${id}/unsell`, { method: "POST" }); },
   async pnl(): Promise<Pnl> { return request("/stats/pnl"); },
+  async exportEbayCsv(status = "READY"): Promise<Blob> {
+    const t = getToken();
+    const headers = new Headers();
+    if (t) headers.set("Authorization", `Bearer ${t}`);
+    const res = await fetch(`/export/ebay.csv?status=${encodeURIComponent(status)}`, { headers });
+    if (res.status === 401) { setToken(null); onUnauthorized?.(); throw new Error("Session expired — please sign in again."); }
+    if (!res.ok) throw new Error(`Export failed (${res.status})`);
+    return res.blob();
+  },
   async deleteComic(id: string): Promise<void> { return request(`/comics/${id}`, { method: "DELETE" }); },
   async importCsv(file: File, dryRun: boolean): Promise<{
     dryRun?: boolean; willImport?: number; imported?: number;

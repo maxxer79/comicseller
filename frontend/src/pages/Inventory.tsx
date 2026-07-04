@@ -32,6 +32,7 @@ export function Inventory() {
   const [data, setData] = useState<{ total: number; items: Comic[] }>();
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -43,6 +44,24 @@ export function Inventory() {
       setError((e as Error).message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function exportCsv() {
+    setExporting(true);
+    setError(undefined);
+    try {
+      const blob = await api.exportEbayCsv(status === "ALL" ? "READY" : status);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "comicseller-ebay.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -86,6 +105,9 @@ export function Inventory() {
           <div>
             <button className="secondary" onClick={load} disabled={loading}>
               {loading ? "Loading…" : "Refresh"}
+            </button>
+            <button className="secondary" onClick={exportCsv} disabled={exporting}>
+              {exporting ? "Exporting…" : "⬇ eBay CSV"}
             </button>
             <Link to="/labels">
               <button className="secondary">🖨 Labels</button>
