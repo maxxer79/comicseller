@@ -117,8 +117,8 @@ export function RapidIntake() {
 
   return (
     <div>
-      <div className="row" style={{ alignItems: "center", justifyContent: "space-between" }}>
-        <h2 style={{ margin: 0 }}>⚡ Rapid intake</h2>
+      <div className="page-head">
+        <h2>⚡ Rapid intake</h2>
         <Link to="/intake"><button className="secondary">Single add (with AI)</button></Link>
       </div>
       <p className="muted" style={{ fontSize: 13 }}>

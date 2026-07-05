@@ -78,8 +78,8 @@ export function Intake() {
 
   return (
     <div className="card" style={{ maxWidth: 640 }}>
-      <div className="row" style={{ alignItems: "center", justifyContent: "space-between" }}>
-        <h2 style={{ margin: 0 }}>Add a comic</h2>
+      <div className="page-head">
+        <h2>Add a comic</h2>
         <Link to="/intake/rapid"><button type="button" className="secondary">⚡ Rapid mode</button></Link>
       </div>
 

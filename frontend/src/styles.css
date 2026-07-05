@@ -127,6 +127,17 @@ h3 { font-size: 17px; font-weight: 600; margin: 0 0 12px; }
 .row { display: flex; gap: 18px; flex-wrap: wrap; }
 .col { flex: 1; min-width: 200px; }
 
+/* Page/section header: title on the left, one action on the right */
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.page-head h2, .page-head h3 { margin: 0; }
+
 /* --- Forms --- */
 label {
   display: block;

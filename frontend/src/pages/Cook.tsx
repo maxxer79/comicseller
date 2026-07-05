@@ -64,8 +64,8 @@ export function Cook() {
 
   return (
     <div>
-      <div className="row" style={{ alignItems: "center", justifyContent: "space-between" }}>
-        <h2 style={{ margin: 0 }}>🔥 Let it cook</h2>
+      <div className="page-head">
+        <h2>🔥 Let it cook</h2>
         <button className="secondary" onClick={load} disabled={loading}>
           {loading ? "Loading…" : "Refresh"}
         </button>
