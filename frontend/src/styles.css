@@ -30,6 +30,11 @@
 
 * { box-sizing: border-box; }
 
+/* Never let the page scroll sideways on phones; wide content (tables) scrolls
+   inside its own container instead of stretching the whole layout. */
+html, body { max-width: 100%; overflow-x: hidden; }
+img { max-width: 100%; }
+
 body {
   margin: 0;
   color: var(--text);
