@@ -215,6 +215,14 @@ comicsRouter.patch("/comics/:id", async (req, res, next) => {
 
     if (typeof b.status === "string") data.status = b.status;
 
+    // Watchlist ("let it cook")
+    if (typeof b.watching === "boolean") data.watching = b.watching;
+    if (b.holdUntil === null || typeof b.holdUntil === "string") {
+      data.holdUntil = b.holdUntil ? new Date(b.holdUntil) : null;
+    }
+    if (b.targetPrice === null || typeof b.targetPrice === "number") data.targetPrice = b.targetPrice;
+    if (b.watchNote === null || typeof b.watchNote === "string") data.watchNote = b.watchNote;
+
     if (Object.keys(data).length === 0) {
       return res.status(400).json({ error: "No valid fields to update" });
     }
@@ -345,11 +353,13 @@ comicsRouter.get("/comics", async (req, res, next) => {
     const upc = typeof req.query.upc === "string" ? req.query.upc : undefined;
     const location = typeof req.query.location === "string" ? req.query.location : undefined;
     const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    const watching = req.query.watching === "true";
 
     const where: Record<string, unknown> = {};
     if (status) where.status = status;
     if (upc) where.upc = upc;
     if (location) where.location = location;
+    if (watching) where.watching = true;
     if (q) {
       where.OR = [
         { title: { contains: q, mode: "insensitive" } },

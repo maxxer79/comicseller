@@ -23,6 +23,7 @@ export interface Comic {
   graded: boolean; gradingCompany: string | null; status: ComicStatus;
   recommendedPrice: string | null; recommendedFormat: ListingFormat | null;
   recommendedAction: SellAction | null; recommendationNote: string | null;
+  watching: boolean; holdUntil: string | null; targetPrice: number | null; watchNote: string | null;
   costBasis: number | null; soldPrice: number | null; soldNet: number | null; soldProfit: number | null; soldAt: string | null;
   photos: Photo[]; priceSnapshots: PriceSnapshot[]; listing: unknown | null;
 }
@@ -131,6 +132,9 @@ export const api = {
     return r.locations;
   },
   async getComic(id: string): Promise<Comic> { return request(`/comics/${id}`); },
+  async cooking(): Promise<{ total: number; items: Comic[] }> {
+    return request(`/comics?watching=true&limit=200`);
+  },
   async createComic(file: File | null, title?: string, upc?: string): Promise<Comic> {
     const form = new FormData();
     if (title) form.append("title", title);

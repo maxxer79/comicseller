@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, type StatsOverview } from "../api";
+import { api, type StatsOverview, type Pnl } from "../api";
+import { BarList, MonthlyBars, type BarDatum } from "../components/Charts";
 
 function money(n: number): string {
   return `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -22,10 +23,12 @@ const STATUS_ORDER = ["INTAKE", "IDENTIFIED", "PRICED", "READY", "LISTED", "SOLD
 
 export function Dashboard() {
   const [s, setS] = useState<StatsOverview>();
+  const [pnl, setPnl] = useState<Pnl>();
   const [error, setError] = useState<string>();
 
   useEffect(() => {
     api.stats().then(setS).catch((e) => setError((e as Error).message));
+    api.pnl().then(setPnl).catch(() => undefined);
   }, []);
 
   if (error) return <p className="error">{error}</p>;
@@ -35,6 +38,22 @@ export function Dashboard() {
   const hold = s.actionCounts.HOLD ?? 0;
   const auction = s.formatCounts.AUCTION ?? 0;
   const bin = s.formatCounts.BUY_IT_NOW ?? 0;
+
+  const statusData: BarDatum[] = STATUS_ORDER.filter((st) => s.statusCounts[st]).map((st) => ({
+    label: st,
+    value: s.statusCounts[st],
+    to: `/?status=${st}`,
+    color: st === "SOLD" ? "#34c759" : st === "READY" ? "#0071e3" : "#8e8e93",
+  }));
+
+  const recData: BarDatum[] = [
+    { label: "Sell now", value: sellNow, color: "#34c759" },
+    { label: "Hold / cook", value: hold, color: "#e0a100" },
+    { label: "Auction", value: auction, color: "#0071e3" },
+    { label: "Buy It Now", value: bin, color: "#8e8e93" },
+  ];
+
+  const months = pnl ? [...pnl.months].reverse().slice(-12) : [];
 
   return (
     <div>
@@ -47,39 +66,31 @@ export function Dashboard() {
         <Kpi label="Key issues" value={s.keyIssues.toLocaleString()} />
       </div>
 
+      {months.length > 0 && (
+        <div className="card">
+          <h3>Monthly sales &amp; profit</h3>
+          <MonthlyBars data={months} />
+        </div>
+      )}
+
       <div className="row">
         <div className="col">
           <div className="card">
-            <h3>Recommended action</h3>
-            <div className="pill-row">
-              <span className="badge good">Sell now: {sellNow}</span>
-              <span className="badge warn">Hold / cook: {hold}</span>
-            </div>
-            <div className="pill-row">
-              <span className="badge accent">Auction: {auction}</span>
-              <span className="badge">Buy It Now: {bin}</span>
-            </div>
+            <h3>Inventory by status</h3>
+            {statusData.length > 0 ? (
+              <BarList data={statusData} />
+            ) : (
+              <p className="muted">No comics yet.</p>
+            )}
           </div>
 
           <div className="card">
-            <h3>By status</h3>
-            <table>
-              <tbody>
-                {STATUS_ORDER.filter((st) => s.statusCounts[st]).map((st) => (
-                  <tr key={st}>
-                    <td>
-                      <Link to={`/?status=${st}`}>{st}</Link>
-                    </td>
-                    <td className="right">{s.statusCounts[st]}</td>
-                  </tr>
-                ))}
-                {Object.keys(s.statusCounts).length === 0 && (
-                  <tr>
-                    <td className="muted">No comics yet.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+            <h3>Recommended action</h3>
+            {sellNow + hold + auction + bin > 0 ? (
+              <BarList data={recData} />
+            ) : (
+              <p className="muted">Price some comics to see recommendations.</p>
+            )}
           </div>
         </div>
 

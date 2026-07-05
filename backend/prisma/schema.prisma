@@ -69,6 +69,12 @@ model Comic {
   recommendedAction  SellAction? // SELL_NOW vs HOLD ("cook longer")
   recommendationNote String?
 
+  // --- Watchlist ("let it cook") ---
+  watching    Boolean   @default(false) // on the let-it-cook list
+  holdUntil   DateTime? // when to revisit and consider listing
+  targetPrice Float? // price you're waiting to reach before selling
+  watchNote   String? // freeform note about why you're holding
+
   // --- Cost & sale (P&L) ---
   costBasis  Float?    // what you paid for this copy
   soldPrice  Float?    // actual sale price

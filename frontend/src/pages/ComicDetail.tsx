@@ -38,6 +38,7 @@ export function ComicDetail() {
   const [scanning, setScanning] = useState(false);
 
   const [form, setForm] = useState<Partial<Comic>>({});
+  const [cook, setCook] = useState({ targetPrice: "", holdUntil: "", watchNote: "" });
   const [price, setPrice] = useState({
     medianPrice: "",
     lowPrice: "",
@@ -65,6 +66,11 @@ export function ComicDetail() {
         grade: c.grade,
         graded: c.graded,
         gradingCompany: c.gradingCompany,
+      });
+      setCook({
+        targetPrice: c.targetPrice != null ? String(c.targetPrice) : "",
+        holdUntil: c.holdUntil ? c.holdUntil.slice(0, 10) : "",
+        watchNote: c.watchNote ?? "",
       });
     } catch (e) {
       setError((e as Error).message);
@@ -138,6 +144,42 @@ export function ComicDetail() {
       if (price.salesPerMonth) body.salesPerMonth = Number(price.salesPerMonth);
       await api.addPrice(id, body);
       setMsg("Price comps saved — recommendation updated.");
+      await load();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveCook() {
+    if (!id) return;
+    setBusy(true);
+    setMsg(undefined);
+    setError(undefined);
+    try {
+      await api.updateComic(id, {
+        watching: true,
+        targetPrice: cook.targetPrice ? Number(cook.targetPrice) : null,
+        holdUntil: cook.holdUntil || null,
+        watchNote: cook.watchNote || null,
+      });
+      setMsg("Added to the cook list.");
+      await load();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function stopCook() {
+    if (!id) return;
+    setBusy(true);
+    setError(undefined);
+    try {
+      await api.updateComic(id, { watching: false });
+      setMsg("Removed from the cook list.");
       await load();
     } catch (e) {
       setError((e as Error).message);
@@ -451,6 +493,54 @@ export function ComicDetail() {
               </>
             ) : (
               <p className="muted">Add price comps to generate a recommendation.</p>
+            )}
+          </div>
+
+          <div className="card">
+            <h3>🔥 Let it cook</h3>
+            <p className="muted" style={{ fontSize: 13 }}>
+              Hold this book for value to rise. It'll show on the{" "}
+              <b>Let it cook</b> tracker, with a nudge when the revisit date arrives.
+            </p>
+            <div className="row">
+              <div className="col" style={{ maxWidth: 160 }}>
+                <label>Target price ($)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={cook.targetPrice}
+                  onChange={(e) => setCook({ ...cook, targetPrice: e.target.value })}
+                  placeholder="price to wait for"
+                />
+              </div>
+              <div className="col" style={{ maxWidth: 200 }}>
+                <label>Revisit on</label>
+                <input
+                  type="date"
+                  value={cook.holdUntil}
+                  onChange={(e) => setCook({ ...cook, holdUntil: e.target.value })}
+                />
+              </div>
+            </div>
+            <label>Note</label>
+            <input
+              value={cook.watchNote}
+              onChange={(e) => setCook({ ...cook, watchNote: e.target.value })}
+              placeholder="why you're holding (e.g. movie rumor, spec play)"
+            />
+            <div className="spacer" />
+            <div className="pill-row">
+              <button onClick={saveCook} disabled={busy}>
+                {comic.watching ? "Update cook plan" : "Let it cook 🔥"}
+              </button>
+              {comic.watching && (
+                <button className="secondary" onClick={stopCook} disabled={busy}>
+                  Stop watching
+                </button>
+              )}
+            </div>
+            {comic.watching && (
+              <p className="muted" style={{ fontSize: 12 }}>On the cook list.</p>
             )}
           </div>
 

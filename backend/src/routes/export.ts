@@ -94,6 +94,7 @@ const BACKUP_COLUMNS = [
   "sku", "title", "issueNumber", "publisher", "variant", "year", "upc", "location",
   "keyIssue", "keyNotes", "grade", "aiSuggestedGrade", "condition", "graded", "gradingCompany",
   "status", "recommendedPrice", "recommendedFormat", "recommendedAction", "recommendationNote",
+  "watching", "holdUntil", "targetPrice", "watchNote",
   "costBasis", "soldPrice", "soldNet", "soldProfit", "soldAt",
   "primaryPhotoUrl", "photoCount", "createdAt", "updatedAt",
 ] as const;
