@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api, type Comic, type ComicStatus } from "../api";
 
 const STATUSES: (ComicStatus | "ALL")[] = [
@@ -22,6 +22,8 @@ function actionBadge(c: Comic) {
 }
 
 export function Inventory() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const q = searchParams.get("q") ?? "";
   const [status, setStatus] = useState<ComicStatus | "ALL">("ALL");
   const [location, setLocation] = useState<string>("");
   const [locations, setLocations] = useState<{ location: string; count: number }[]>([]);
@@ -40,7 +42,7 @@ export function Inventory() {
     setLoading(true);
     setError(undefined);
     try {
-      const res = await api.listComics(status === "ALL" ? undefined : status, location || undefined);
+      const res = await api.listComics(status === "ALL" ? undefined : status, location || undefined, q || undefined);
       setData(res);
       setSelected(new Set());
     } catch (e) {
@@ -75,7 +77,7 @@ export function Inventory() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, location]);
+  }, [status, location, q]);
 
   const items = data?.items ?? [];
   const allSelected = items.length > 0 && items.every((c) => selected.has(c.id));
@@ -142,6 +144,13 @@ export function Inventory() {
       </div>
 
       {error && <p className="error">{error}</p>}
+
+      {q && (
+        <p className="muted" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          Search results for <strong>“{q}”</strong>
+          <button className="secondary" onClick={() => setSearchParams({})}>Clear search</button>
+        </p>
+      )}
 
       {selected.size > 0 && (
         <div className="card" style={{ background: "var(--panel-2, rgba(0,0,0,0.03))" }}>

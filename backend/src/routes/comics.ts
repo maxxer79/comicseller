@@ -344,11 +344,24 @@ comicsRouter.get("/comics", async (req, res, next) => {
     const status = typeof req.query.status === "string" ? req.query.status : undefined;
     const upc = typeof req.query.upc === "string" ? req.query.upc : undefined;
     const location = typeof req.query.location === "string" ? req.query.location : undefined;
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
 
     const where: Record<string, unknown> = {};
     if (status) where.status = status;
     if (upc) where.upc = upc;
     if (location) where.location = location;
+    if (q) {
+      where.OR = [
+        { title: { contains: q, mode: "insensitive" } },
+        { issueNumber: { contains: q, mode: "insensitive" } },
+        { publisher: { contains: q, mode: "insensitive" } },
+        { variant: { contains: q, mode: "insensitive" } },
+        { keyNotes: { contains: q, mode: "insensitive" } },
+        { location: { contains: q, mode: "insensitive" } },
+        { upc: { contains: q } },
+        { sku: { contains: q } },
+      ];
+    }
 
     const [items, total] = await Promise.all([
       prisma.comic.findMany({

@@ -118,10 +118,11 @@ export const api = {
     return request(`/admin/users/${id}`, jsonInit("PATCH", body));
   },
   async deleteUser(id: string): Promise<void> { return request(`/admin/users/${id}`, { method: "DELETE" }); },
-  async listComics(status?: string, location?: string): Promise<{ total: number; items: Comic[] }> {
+  async listComics(status?: string, location?: string, search?: string): Promise<{ total: number; items: Comic[] }> {
     const qs = new URLSearchParams();
     if (status) qs.set("status", status);
     if (location) qs.set("location", location);
+    if (search) qs.set("q", search);
     const q = qs.toString() ? `?${qs.toString()}` : "";
     return request(`/comics${q}`);
   },

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { NavLink, Route, Routes, Navigate, Link } from "react-router-dom";
+import { useEffect, useState, type FormEvent } from "react";
+import { NavLink, Route, Routes, Navigate, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "./auth";
 import { api, type VersionInfo } from "./api";
 import { Login } from "./pages/Login";
@@ -28,11 +28,29 @@ function useTheme(): [string, () => void] {
 function Header({ version }: { version?: VersionInfo }) {
   const { user, logout } = useAuth();
   const [theme, toggleTheme] = useTheme();
+  const navigate = useNavigate();
+  const [q, setQ] = useState("");
+
+  function submitSearch(e: FormEvent) {
+    e.preventDefault();
+    const term = q.trim();
+    navigate(term ? `/?q=${encodeURIComponent(term)}` : "/");
+  }
+
   return (
     <header className="app-header">
       <Link className="brand-link" to="/">
         <span className="brand">📚 Comicseller</span>
       </Link>
+      <form className="header-search" onSubmit={submitSearch} role="search">
+        <input
+          type="search"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search comics…"
+          aria-label="Search comics"
+        />
+      </form>
       <nav>
         <NavLink to="/" end>
           Inventory
