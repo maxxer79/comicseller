@@ -1,6 +1,6 @@
 {
   "name": "comicseller-backend",
-  "version": "0.4.6",
+  "version": "0.4.7",
   "private": true,
   "description": "Backend API for Comicseller",
   "main": "dist/index.js",

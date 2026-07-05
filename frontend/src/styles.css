@@ -82,6 +82,16 @@ h3 { font-size: 17px; font-weight: 600; margin: 0 0 12px; }
 .header-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
 .header-user { font-size: 13px; color: var(--muted); }
 
+/* Hamburger — hidden on desktop, shown on phones via media query below */
+.nav-toggle {
+  display: none;
+  width: 38px; height: 38px; padding: 0;
+  align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.05); color: var(--text);
+  border: none; border-radius: 10px; font-size: 18px; line-height: 1; cursor: pointer;
+}
+.nav-toggle:hover { background: rgba(0, 0, 0, 0.08); }
+
 .container { max-width: 1040px; margin: 0 auto; padding: 32px 24px 64px; }
 
 /* --- Cards --- */

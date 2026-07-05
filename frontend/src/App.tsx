@@ -36,18 +36,28 @@ function Header({ version }: { version?: VersionInfo }) {
   const [theme, toggleTheme] = useTheme();
   const navigate = useNavigate();
   const [q, setQ] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
 
   function submitSearch(e: FormEvent) {
     e.preventDefault();
     const term = q.trim();
     navigate(term ? `/?q=${encodeURIComponent(term)}` : "/");
+    setMenuOpen(false);
   }
 
   return (
     <header className="app-header">
-      <Link className="brand-link" to="/">
+      <Link className="brand-link" to="/" onClick={() => setMenuOpen(false)}>
         <span className="brand">📚 Comicseller</span>
       </Link>
+      <button
+        className="nav-toggle"
+        onClick={() => setMenuOpen((o) => !o)}
+        aria-label={menuOpen ? "Close menu" : "Open menu"}
+        aria-expanded={menuOpen}
+      >
+        {menuOpen ? "✕" : "☰"}
+      </button>
       <form className="header-search" onSubmit={submitSearch} role="search">
         <input
           type="search"
@@ -57,7 +67,7 @@ function Header({ version }: { version?: VersionInfo }) {
           aria-label="Search comics"
         />
       </form>
-      <nav>
+      <nav className={menuOpen ? "app-nav open" : "app-nav"} onClick={() => setMenuOpen(false)}>
         <NavLink to="/" end>
           Inventory
         </NavLink>
