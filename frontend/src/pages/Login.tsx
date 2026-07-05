@@ -24,7 +24,7 @@ export function Login() {
   return (
     <div className="login-wrap">
       <form className="login-card" onSubmit={submit}>
-        <div className="logo">📚</div>
+        <div className="brand-badge brand-badge-lg" aria-hidden="true">Cs</div>
         <h1>Comicseller</h1>
         <p className="sub">Sign in to your collection</p>
 

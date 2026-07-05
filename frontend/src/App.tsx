@@ -48,7 +48,8 @@ function Header({ version }: { version?: VersionInfo }) {
   return (
     <header className="app-header">
       <Link className="brand-link" to="/" onClick={() => setMenuOpen(false)}>
-        <span className="brand">📚 Comicseller</span>
+        <span className="brand-badge" aria-hidden="true">Cs</span>
+        <span className="brand">Comicseller</span>
       </Link>
       <button
         className="nav-toggle"
