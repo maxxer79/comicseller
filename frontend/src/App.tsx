@@ -8,9 +8,14 @@ import { Labels } from "./pages/Labels";
 import { Sales } from "./pages/Sales";
 import { Inventory } from "./pages/Inventory";
 import { Intake } from "./pages/Intake";
+import { RapidIntake } from "./pages/RapidIntake";
 import { ComicDetail } from "./pages/ComicDetail";
 import { ImportCsv } from "./pages/ImportCsv";
-import { Admin } from "./pages/Admin";
+import { AdminLayout } from "./pages/admin/AdminLayout";
+import { SystemAdmin } from "./pages/admin/SystemAdmin";
+import { UsersAdmin } from "./pages/admin/UsersAdmin";
+import { FeesAdmin } from "./pages/admin/FeesAdmin";
+import { EbayAdmin } from "./pages/admin/EbayAdmin";
 
 function useTheme(): [string, () => void] {
   const [theme, setTheme] = useState<string>(
@@ -56,7 +61,8 @@ function Header({ version }: { version?: VersionInfo }) {
           Inventory
         </NavLink>
         <NavLink to="/dashboard">Dashboard</NavLink>
-        <NavLink to="/intake">Add comic</NavLink>
+        <NavLink to="/intake" end>Add comic</NavLink>
+        <NavLink to="/intake/rapid">Rapid add</NavLink>
         <NavLink to="/import">Import</NavLink>
         <NavLink to="/labels">Labels</NavLink>
         <NavLink to="/sales">Sales</NavLink>
@@ -107,14 +113,20 @@ export function App() {
           <Route path="/" element={<Inventory />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/intake" element={<Intake />} />
+          <Route path="/intake/rapid" element={<RapidIntake />} />
           <Route path="/import" element={<ImportCsv />} />
           <Route path="/labels" element={<Labels />} />
           <Route path="/sales" element={<Sales />} />
           <Route path="/comics/:id" element={<ComicDetail />} />
           <Route
             path="/admin"
-            element={user.role === "ADMIN" ? <Admin /> : <Navigate to="/" replace />}
-          />
+            element={user.role === "ADMIN" ? <AdminLayout /> : <Navigate to="/" replace />}
+          >
+            <Route index element={<SystemAdmin />} />
+            <Route path="users" element={<UsersAdmin />} />
+            <Route path="fees" element={<FeesAdmin />} />
+            <Route path="ebay" element={<EbayAdmin />} />
+          </Route>
           <Route path="*" element={<p>Not found.</p>} />
         </Routes>
       </main>

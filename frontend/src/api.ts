@@ -183,6 +183,16 @@ export const api = {
     if (!res.ok) throw new Error(`Export failed (${res.status})`);
     return res.blob();
   },
+  async exportInventoryCsv(status?: string): Promise<Blob> {
+    const t = getToken();
+    const headers = new Headers();
+    if (t) headers.set("Authorization", `Bearer ${t}`);
+    const qs = status && status !== "ALL" ? `?status=${encodeURIComponent(status)}` : "";
+    const res = await fetch(`/export/inventory.csv${qs}`, { headers });
+    if (res.status === 401) { setToken(null); onUnauthorized?.(); throw new Error("Session expired — please sign in again."); }
+    if (!res.ok) throw new Error(`Backup failed (${res.status})`);
+    return res.blob();
+  },
   async deleteComic(id: string): Promise<void> { return request(`/comics/${id}`, { method: "DELETE" }); },
   async bulkUpdate(ids: string[], set: { status?: string; location?: string | null }): Promise<{ updated: number }> {
     return request("/comics/bulk", jsonInit("POST", { ids, set }));

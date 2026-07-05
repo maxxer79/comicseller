@@ -31,6 +31,7 @@ export function Inventory() {
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [backing, setBacking] = useState(false);
 
   // Bulk selection
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -52,21 +53,39 @@ export function Inventory() {
     }
   }
 
+  function download(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   async function exportCsv() {
     setExporting(true);
     setError(undefined);
     try {
       const blob = await api.exportEbayCsv(status === "ALL" ? "READY" : status);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "comicseller-ebay.csv";
-      a.click();
-      URL.revokeObjectURL(url);
+      download(blob, "comicseller-ebay.csv");
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function backupCsv() {
+    setBacking(true);
+    setError(undefined);
+    try {
+      const blob = await api.exportInventoryCsv(status);
+      const stamp = new Date().toISOString().slice(0, 10);
+      download(blob, `comicseller-backup-${stamp}.csv`);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBacking(false);
     }
   }
 
@@ -136,6 +155,9 @@ export function Inventory() {
             </button>
             <button className="secondary" onClick={exportCsv} disabled={exporting}>
               {exporting ? "Exporting…" : "⬇ eBay CSV"}
+            </button>
+            <button className="secondary" onClick={backupCsv} disabled={backing} title="Download a full backup of the current view">
+              {backing ? "Backing up…" : "⬇ Backup CSV"}
             </button>
             <Link to="/labels"><button className="secondary">🖨 Labels</button></Link>
             <Link to="/intake"><button>+ Add comic</button></Link>

@@ -78,3 +78,71 @@ exportRouter.get("/export/ebay.csv", async (req, res, next) => {
     next(err);
   }
 });
+
+/** CSV field escaper (RFC 4180). */
+function csvCell(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  let s: string;
+  if (v instanceof Date) s = v.toISOString();
+  else if (typeof v === "boolean") s = v ? "true" : "false";
+  else s = String(v);
+  if (/[",\r\n]/.test(s)) s = `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+const BACKUP_COLUMNS = [
+  "sku", "title", "issueNumber", "publisher", "variant", "year", "upc", "location",
+  "keyIssue", "keyNotes", "grade", "aiSuggestedGrade", "condition", "graded", "gradingCompany",
+  "status", "recommendedPrice", "recommendedFormat", "recommendedAction", "recommendationNote",
+  "costBasis", "soldPrice", "soldNet", "soldProfit", "soldAt",
+  "primaryPhotoUrl", "photoCount", "createdAt", "updatedAt",
+] as const;
+
+/**
+ * GET /export/inventory.csv?status=ALL
+ * Full-catalog backup — every field for every comic. A complete, human-readable
+ * export you can re-import or archive. Optional status filter.
+ */
+exportRouter.get("/export/inventory.csv", async (req, res, next) => {
+  try {
+    const where: Record<string, unknown> = {};
+    if (typeof req.query.status === "string" && EXPORTABLE_STATUSES.includes(req.query.status)) {
+      where.status = req.query.status;
+    }
+
+    const comics = await prisma.comic.findMany({
+      where: where as never,
+      include: { photos: { orderBy: { createdAt: "asc" } } },
+      orderBy: { createdAt: "asc" },
+    });
+
+    type BackupComic = Record<string, unknown> & {
+      photos: { url: string | null; isPrimary: boolean }[];
+    };
+
+    const lines = [BACKUP_COLUMNS.join(",")];
+    for (const c of comics as BackupComic[]) {
+      const primary =
+        c.photos.find((p) => p.isPrimary)?.url ?? c.photos[0]?.url ?? null;
+      const row: Record<string, unknown> = {
+        ...c,
+        grade: c.grade == null ? null : Number(c.grade),
+        recommendedPrice: c.recommendedPrice == null ? null : Number(c.recommendedPrice),
+        primaryPhotoUrl: primary,
+        photoCount: c.photos.length,
+      };
+      lines.push(BACKUP_COLUMNS.map((col) => csvCell(row[col])).join(","));
+    }
+
+    const csv = lines.join("\r\n");
+    const stamp = new Date().toISOString().slice(0, 10);
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="comicseller-backup-${stamp}.csv"`
+    );
+    res.send(csv);
+  } catch (err) {
+    next(err);
+  }
+});

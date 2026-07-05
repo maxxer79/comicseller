@@ -78,6 +78,40 @@
   .header-search input { width: 100%; }
 }
 
+/* --- Admin tabs --- */
+.admin-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 4px 0 20px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--panel-2, rgba(0,0,0,0.04));
+  width: fit-content;
+}
+.admin-tabs a {
+  padding: 7px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted, #666);
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+.admin-tabs a:hover { background: rgba(0,0,0,0.05); text-decoration: none; }
+.admin-tabs a.active {
+  background: var(--panel, #fff);
+  color: var(--text, #111);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+:root[data-theme="dark"] .admin-tabs { background: rgba(255,255,255,0.06); }
+:root[data-theme="dark"] .admin-tabs a:hover { background: rgba(255,255,255,0.08); }
+:root[data-theme="dark"] .admin-tabs a.active {
+  background: rgba(255,255,255,0.14);
+  color: #fff;
+  box-shadow: none;
+}
+
 /* --- Spinner --- */
 .spinner {
   display: inline-block;

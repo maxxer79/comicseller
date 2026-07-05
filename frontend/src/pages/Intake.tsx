@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { Progress } from "../components/Spinner";
 import { BarcodeScanner } from "../components/BarcodeScanner";
@@ -78,7 +78,10 @@ export function Intake() {
 
   return (
     <div className="card" style={{ maxWidth: 640 }}>
-      <h2>Add a comic</h2>
+      <div className="row" style={{ alignItems: "center", justifyContent: "space-between" }}>
+        <h2 style={{ margin: 0 }}>Add a comic</h2>
+        <Link to="/intake/rapid"><button type="button" className="secondary">⚡ Rapid mode</button></Link>
+      </div>
 
       <div className="row">
         <div className="col">
