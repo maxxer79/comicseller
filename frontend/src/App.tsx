@@ -10,6 +10,7 @@ import { Cook } from "./pages/Cook";
 import { Inventory } from "./pages/Inventory";
 import { Intake } from "./pages/Intake";
 import { RapidIntake } from "./pages/RapidIntake";
+import { BatchIntake } from "./pages/BatchIntake";
 import { ComicDetail } from "./pages/ComicDetail";
 import { ImportCsv } from "./pages/ImportCsv";
 import { AdminLayout } from "./pages/admin/AdminLayout";
@@ -17,6 +18,7 @@ import { SystemAdmin } from "./pages/admin/SystemAdmin";
 import { UsersAdmin } from "./pages/admin/UsersAdmin";
 import { FeesAdmin } from "./pages/admin/FeesAdmin";
 import { EbayAdmin } from "./pages/admin/EbayAdmin";
+import { AiAdmin } from "./pages/admin/AiAdmin";
 
 function useTheme(): [string, () => void] {
   const [theme, setTheme] = useState<string>(
@@ -75,6 +77,7 @@ function Header({ version }: { version?: VersionInfo }) {
         <NavLink to="/dashboard">Dashboard</NavLink>
         <NavLink to="/intake" end>Add comic</NavLink>
         <NavLink to="/intake/rapid">Rapid add</NavLink>
+        <NavLink to="/intake/batch">Scan a pile</NavLink>
         <NavLink to="/import">Import</NavLink>
         <NavLink to="/cook">Let it cook</NavLink>
         <NavLink to="/labels">Labels</NavLink>
@@ -127,6 +130,7 @@ export function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/intake" element={<Intake />} />
           <Route path="/intake/rapid" element={<RapidIntake />} />
+          <Route path="/intake/batch" element={<BatchIntake />} />
           <Route path="/import" element={<ImportCsv />} />
           <Route path="/labels" element={<Labels />} />
           <Route path="/sales" element={<Sales />} />
@@ -140,6 +144,7 @@ export function App() {
             <Route path="users" element={<UsersAdmin />} />
             <Route path="fees" element={<FeesAdmin />} />
             <Route path="ebay" element={<EbayAdmin />} />
+            <Route path="ai" element={<AiAdmin />} />
           </Route>
           <Route path="*" element={<p>Not found.</p>} />
         </Routes>

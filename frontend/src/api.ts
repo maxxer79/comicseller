@@ -60,11 +60,37 @@ export interface Settings {
   ebayCategoryId: string; ebayConditionId: string; ebayDuration: string;
   ebayShippingProfile: string; ebayPaymentProfile: string; ebayReturnProfile: string;
   publicBaseUrl: string;
+  aiProvider: AiProvider;
+  anthropicModel: string; geminiModel: string; grokModel: string;
+  ai?: AiStatus;
 }
 export interface Pnl {
   unitsSold: number; revenue: number; net: number; cost: number; profit: number;
   months: { month: string; units: number; revenue: number; net: number; profit: number }[];
   recent: { id: string; title: string; issueNumber: string | null; soldPrice: number; soldProfit: number; soldAt: string | null }[];
+}
+
+export interface BatchDetectedComic {
+  comic: Comic;
+  cropUrl: string;
+  detection: {
+    box: { x: number; y: number; w: number; h: number };
+    title: string | null; publisher: string | null; confidence: number;
+  };
+}
+export interface BatchDetectResult {
+  originalUrl: string; width: number; height: number;
+  detected: number; created: number; comics: BatchDetectedComic[];
+}
+
+export type AiProvider = "anthropic" | "gemini" | "grok";
+export interface ProviderStatus { configured: boolean; maskedKey: string | null; model: string; fromEnv: boolean; }
+export interface AiStatus { provider: AiProvider; mock: boolean; providers: Record<AiProvider, ProviderStatus>; }
+export interface AiTestResult { provider: AiProvider; model: string; ok: boolean; detail?: string; }
+export interface AiUpdate {
+  aiProvider?: AiProvider;
+  anthropicModel?: string; geminiModel?: string; grokModel?: string;
+  anthropicKey?: string; geminiKey?: string; grokKey?: string;
 }
 
 const TOKEN_KEY = "comicseller.token";
@@ -111,6 +137,12 @@ export const api = {
   async updateSettings(body: Partial<Omit<Settings, "id" | "updatedAt">>): Promise<Settings> {
     return request("/settings", jsonInit("PATCH", body));
   },
+  async updateAiSettings(body: AiUpdate): Promise<Settings> {
+    return request("/settings", jsonInit("PATCH", body));
+  },
+  async testAi(): Promise<AiTestResult> {
+    return request("/settings/ai/test", { method: "POST" });
+  },
   async listUsers(): Promise<{ users: AdminUser[] }> { return request("/admin/users"); },
   async createUser(body: { email: string; password: string; name?: string; role?: Role }): Promise<AdminUser> {
     return request("/admin/users", jsonInit("POST", body));
@@ -141,6 +173,11 @@ export const api = {
     if (upc) form.append("upc", upc);
     if (file) form.append("photo", file);
     return request(`/comics`, { method: "POST", body: form });
+  },
+  async batchDetect(file: File): Promise<BatchDetectResult> {
+    const form = new FormData();
+    form.append("photo", file);
+    return request(`/comics/batch-detect`, { method: "POST", body: form });
   },
   async findByUpc(upc: string): Promise<{ total: number; items: Comic[] }> {
     return request(`/comics?upc=${encodeURIComponent(upc)}`);

@@ -138,7 +138,7 @@ comicsRouter.delete("/comics/:id/photos/:photoId", async (req, res, next) => {
 
 comicsRouter.post("/comics/:id/identify", async (req, res, next) => {
   try {
-    if (!isVisionConfigured()) {
+    if (!(await isVisionConfigured())) {
       return res.status(503).json({
         error: "Vision not configured. Set ANTHROPIC_API_KEY (or VISION_MOCK=1 to test).",
       });
@@ -372,7 +372,6 @@ comicsRouter.get("/comics", async (req, res, next) => {
         { sku: { contains: q } },
       ];
     }
-
     const [items, total] = await Promise.all([
       prisma.comic.findMany({
         where: where as never,

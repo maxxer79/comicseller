@@ -21,6 +21,10 @@ export const config = {
     process.env.JWT_SECRET ??
     (isProduction ? required("JWT_SECRET") : "dev-insecure-secret-change-me"),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "7d",
+  encSecret:
+    process.env.APP_ENC_SECRET ??
+    process.env.JWT_SECRET ??
+    (isProduction ? required("APP_ENC_SECRET") : "dev-insecure-enc-secret-change-me"),
   seedAdminEmail: process.env.ADMIN_EMAIL ?? "",
   seedAdminPassword: process.env.ADMIN_PASSWORD ?? "",
   seedAdminName: process.env.ADMIN_NAME ?? "Admin",
@@ -28,6 +32,9 @@ export const config = {
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
   visionModel: process.env.VISION_MODEL ?? "claude-sonnet-4-5",
   visionMock: process.env.VISION_MOCK === "1",
+  // Optional env fallbacks for the other providers (DB settings take priority).
+  geminiApiKey: process.env.GEMINI_API_KEY ?? "",
+  grokApiKey: process.env.XAI_API_KEY ?? process.env.GROK_API_KEY ?? "",
 
   storageDir: process.env.STORAGE_DIR ?? "./storage",
   storagePublicPath: process.env.STORAGE_PUBLIC_PATH ?? "/photos",

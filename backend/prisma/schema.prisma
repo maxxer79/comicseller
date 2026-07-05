@@ -212,6 +212,15 @@ model Settings {
   ebayPaymentProfile  String @default("")        // business policy name
   ebayReturnProfile   String @default("")        // business policy name
   publicBaseUrl       String @default("")        // e.g. https://comics.example.com (for photo URLs)
+
+  // --- AI provider configuration ---
+  aiProvider      String  @default("anthropic") // active provider: anthropic | gemini | grok
+  anthropicKeyEnc String? // AES-256-GCM encrypted API key (never returned raw)
+  geminiKeyEnc    String?
+  grokKeyEnc      String?
+  anthropicModel  String  @default("claude-sonnet-4-5")
+  geminiModel     String  @default("gemini-2.0-flash")
+  grokModel       String  @default("grok-2-vision-1212")
 }
 
 // ---------------------------------------------------------------------------

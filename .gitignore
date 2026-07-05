@@ -25,3 +25,6 @@ npm-debug.log*
 .DS_Store
 .idea/
 .vscode/
+
+# editor/FUSE mount artifacts
+.fuse_hidden*
