@@ -39,6 +39,12 @@ export function Inventory() {
   const [bulkStatus, setBulkStatus] = useState<ComicStatus>("READY");
   const [bulkBusy, setBulkBusy] = useState(false);
 
+  // Bulk AI identify
+  const [idRun, setIdRun] = useState(false);
+  const [idProg, setIdProg] = useState<
+    { done: number; total: number; ok: number; fail: number; skip: number }
+  >();
+
   async function load() {
     setLoading(true);
     setError(undefined);
@@ -128,6 +134,32 @@ export function Inventory() {
 
   const ids = () => Array.from(selected);
 
+  async function runIdentify() {
+    const chosen = items.filter((c) => selected.has(c.id));
+    const withPhoto = chosen.filter((c) => c.photos.length > 0);
+    const skip = chosen.length - withPhoto.length;
+    if (withPhoto.length === 0) {
+      setError("None of the selected comics have a photo to identify.");
+      return;
+    }
+    setError(undefined);
+    setIdRun(true);
+    let ok = 0;
+    let fail = 0;
+    setIdProg({ done: 0, total: withPhoto.length, ok, fail, skip });
+    for (let i = 0; i < withPhoto.length; i++) {
+      try {
+        await api.identify(withPhoto[i].id);
+        ok += 1;
+      } catch {
+        fail += 1;
+      }
+      setIdProg({ done: i + 1, total: withPhoto.length, ok, fail, skip });
+    }
+    setIdRun(false);
+    await load(); // refresh titles/status; clears selection
+  }
+
   return (
     <div>
       <div className="card">
@@ -167,6 +199,16 @@ export function Inventory() {
 
       {error && <p className="error">{error}</p>}
 
+      {idProg && (
+        <p className="muted" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {idRun ? "Identifying" : "AI identify complete"}: {idProg.done}/{idProg.total} ·{" "}
+          <span style={{ color: "var(--good)" }}>{idProg.ok} ok</span>
+          {idProg.fail > 0 && <> · <span style={{ color: "var(--bad)" }}>{idProg.fail} failed</span></>}
+          {idProg.skip > 0 && <> · {idProg.skip} skipped (no photo)</>}
+          {!idRun && <button className="secondary" onClick={() => setIdProg(undefined)}>Dismiss</button>}
+        </p>
+      )}
+
       {q && (
         <p className="muted" style={{ display: "flex", alignItems: "center", gap: 8 }}>
           Search results for <strong>“{q}”</strong>
@@ -197,9 +239,12 @@ export function Inventory() {
               </div>
             </div>
             <div>
-              <button className="secondary" disabled={bulkBusy} onClick={() => runBulk(() => api.bulkUpdate(ids(), { status: "READY" }))}>Mark ready</button>
-              <button className="danger" disabled={bulkBusy} onClick={() => { if (confirm(`Delete ${selected.size} comic(s)? This removes their photos too.`)) runBulk(() => api.bulkDelete(ids())); }}>Delete</button>
-              <button className="secondary" disabled={bulkBusy} onClick={() => setSelected(new Set())}>Clear</button>
+              <button className="secondary" disabled={bulkBusy || idRun} onClick={runIdentify} title="Run AI identification on selected comics that have a photo">
+                {idRun ? "Identifying…" : "🔍 Identify (AI)"}
+              </button>
+              <button className="secondary" disabled={bulkBusy || idRun} onClick={() => runBulk(() => api.bulkUpdate(ids(), { status: "READY" }))}>Mark ready</button>
+              <button className="danger" disabled={bulkBusy || idRun} onClick={() => { if (confirm(`Delete ${selected.size} comic(s)? This removes their photos too.`)) runBulk(() => api.bulkDelete(ids())); }}>Delete</button>
+              <button className="secondary" disabled={bulkBusy || idRun} onClick={() => setSelected(new Set())}>Clear</button>
             </div>
           </div>
         </div>
