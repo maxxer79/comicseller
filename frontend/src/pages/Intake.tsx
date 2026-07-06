@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api } from "../api";
+import { api, type Identification } from "../api";
 import { Progress } from "../components/Spinner";
 import { BarcodeScanner } from "../components/BarcodeScanner";
 import { parseComicBarcode } from "../lib/comicBarcode";
@@ -14,6 +14,7 @@ export function Intake() {
   const [supplement, setSupplement] = useState("");
   const [publisher, setPublisher] = useState("");
   const [barcodeInfo, setBarcodeInfo] = useState<string>();
+  const [suggestion, setSuggestion] = useState<Identification>();
   const [dupWarning, setDupWarning] = useState<string>();
   const [matchNote, setMatchNote] = useState<string>();
   const [scanning, setScanning] = useState(false);
@@ -97,13 +98,57 @@ export function Intake() {
     await runLookup(digits);
   }
 
+  async function autoFill() {
+    if (!file) return;
+    setBusy(true);
+    setError(undefined);
+    setStep("Reading the cover with AI…");
+    try {
+      const { suggestion: sug } = await api.identifyPreview(file);
+      setSuggestion(sug);
+      if (sug.title) setTitle((t) => t || sug.title!);
+      if (sug.publisher) setPublisher((pub) => pub || sug.publisher!);
+      const bits = [
+        sug.title ? `${sug.title}${sug.issueNumber ? " #" + sug.issueNumber : ""}` : null,
+        sug.publisher,
+        sug.year ? String(sug.year) : null,
+        sug.suggestedGrade ? `grade ~${sug.suggestedGrade}` : null,
+        sug.keyIssue ? "KEY" : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      setMatchNote(`AI read the cover: ${bits} (${Math.round(sug.confidence * 100)}% confidence). Review, then Create.`);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+      setStep(undefined);
+    }
+  }
+
   async function submit(runIdentify: boolean) {
     setBusy(true);
     setError(undefined);
     try {
       setStep("Creating intake…");
-      const comic = await api.createComic(file, title || undefined, fullUpc(upc, supplement) || undefined, publisher || undefined);
-      if (runIdentify && file) {
+      const extra = suggestion
+        ? {
+            issueNumber: suggestion.issueNumber,
+            year: suggestion.year,
+            variant: suggestion.variant,
+            keyIssue: suggestion.keyIssue,
+            keyNotes: suggestion.keyNotes,
+            aiSuggestedGrade: suggestion.suggestedGrade,
+          }
+        : undefined;
+      const comic = await api.createComic(
+        file,
+        title || undefined,
+        fullUpc(upc, supplement) || undefined,
+        publisher || undefined,
+        extra
+      );
+      if (runIdentify && !suggestion && file) {
         setStep("Identifying from photo…");
         try {
           await api.identify(comic.id);
@@ -200,8 +245,15 @@ export function Intake() {
 
       {!busy && (
         <div className="pill-row">
-          <button onClick={() => submit(true)} disabled={!file}>
-            Create &amp; identify with AI
+          {file && (
+            <button onClick={autoFill}>✨ Auto-fill from photo</button>
+          )}
+          <button
+            className={suggestion ? undefined : "secondary"}
+            onClick={() => submit(true)}
+            disabled={!file}
+          >
+            {suggestion ? "Create" : "Create &amp; identify with AI"}
           </button>
           <button className="secondary" onClick={() => submit(false)}>
             Create without AI
@@ -209,9 +261,9 @@ export function Intake() {
         </div>
       )}
       <p className="muted" style={{ fontSize: 12 }}>
-        On a phone, the photo button opens your camera. AI identification needs a
-        photo and a configured API key (or VISION_MOCK=1). You'll confirm
-        everything on the next screen.
+        Take a cover photo, then tap “Auto-fill from photo” — the AI fills in the
+        title, issue, publisher, year, and a suggested grade (needs an AI key in
+        Admin → AI). Review and Create; you confirm the grade on the next screen.
       </p>
 
       {scanning && (

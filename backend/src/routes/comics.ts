@@ -39,7 +39,32 @@ comicsRouter.post("/comics", upload.single("photo"), async (req, res, next) => {
         ? req.body.publisher.trim()
         : null;
 
-    const comic = await prisma.comic.create({ data: { title, upc, publisher } });
+    const strField = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+    const numField = (v: unknown) => {
+      const n = typeof v === "string" ? Number(v) : typeof v === "number" ? v : NaN;
+      return Number.isFinite(n) ? n : null;
+    };
+    const issueNumber = strField(req.body.issueNumber);
+    const variant = strField(req.body.variant);
+    const keyNotes = strField(req.body.keyNotes);
+    const year = numField(req.body.year);
+    const aiSuggestedGrade = numField(req.body.aiSuggestedGrade);
+    const keyIssue = req.body.keyIssue === "true" || req.body.keyIssue === true;
+
+    const comic = await prisma.comic.create({
+      data: {
+        title,
+        upc,
+        publisher,
+        issueNumber,
+        variant,
+        keyNotes,
+        year,
+        keyIssue,
+        aiSuggestedGrade,
+        status: aiSuggestedGrade !== null ? "IDENTIFIED" : "INTAKE",
+      },
+    });
 
     if (req.file) {
       const saved = await savePhoto(req.file.buffer, req.file.mimetype, req.file.originalname);
@@ -466,6 +491,27 @@ comicsRouter.get("/comics/:id/copies", async (req, res, next) => {
     });
     res.json({ count: items.length, items });
   } catch (err) {
+    next(err);
+  }
+});
+
+/** POST /comics/identify-preview — run AI identify on an uploaded photo without
+ *  creating a comic. Lets the Add screen fill fields before saving. */
+comicsRouter.post("/comics/identify-preview", upload.single("photo"), async (req, res, next) => {
+  try {
+    if (!(await isVisionConfigured())) {
+      return res.status(503).json({
+        error: "Vision not configured. Set a key under Admin \u2192 AI (or VISION_MOCK=1 to test).",
+      });
+    }
+    if (!req.file) return res.status(400).json({ error: "No photo uploaded" });
+    const base64 = req.file.buffer.toString("base64");
+    const suggestion = await identifyComic(base64, req.file.mimetype ?? "image/jpeg");
+    res.json({ suggestion });
+  } catch (err) {
+    if (err instanceof VisionNotConfiguredError) {
+      return res.status(503).json({ error: err.message });
+    }
     next(err);
   }
 });

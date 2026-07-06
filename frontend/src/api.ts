@@ -173,13 +173,33 @@ export const api = {
   async cooking(): Promise<{ total: number; items: Comic[] }> {
     return request(`/comics?watching=true&limit=200`);
   },
-  async createComic(file: File | null, title?: string, upc?: string, publisher?: string): Promise<Comic> {
+  async createComic(
+    file: File | null,
+    title?: string,
+    upc?: string,
+    publisher?: string,
+    extra?: {
+      issueNumber?: string | null; year?: number | null; variant?: string | null;
+      keyIssue?: boolean; keyNotes?: string | null; aiSuggestedGrade?: number | null;
+    }
+  ): Promise<Comic> {
     const form = new FormData();
     if (title) form.append("title", title);
     if (upc) form.append("upc", upc);
     if (publisher) form.append("publisher", publisher);
+    if (extra?.issueNumber) form.append("issueNumber", extra.issueNumber);
+    if (extra?.year != null) form.append("year", String(extra.year));
+    if (extra?.variant) form.append("variant", extra.variant);
+    if (extra?.keyIssue) form.append("keyIssue", "true");
+    if (extra?.keyNotes) form.append("keyNotes", extra.keyNotes);
+    if (extra?.aiSuggestedGrade != null) form.append("aiSuggestedGrade", String(extra.aiSuggestedGrade));
     if (file) form.append("photo", file);
     return request(`/comics`, { method: "POST", body: form });
+  },
+  async identifyPreview(file: File): Promise<{ suggestion: Identification }> {
+    const form = new FormData();
+    form.append("photo", file);
+    return request(`/comics/identify-preview`, { method: "POST", body: form });
   },
   async batchDetect(file: File): Promise<BatchDetectResult> {
     const form = new FormData();
