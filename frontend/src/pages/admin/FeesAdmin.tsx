@@ -20,6 +20,7 @@ export function FeesAdmin() {
         perOrderFee: settings.perOrderFee,
         shippingCost: settings.shippingCost,
         shippingCharged: settings.shippingCharged,
+        freeShippingDefault: settings.freeShippingDefault,
       });
       setSettings(s);
       setMsg("Fees & shipping saved.");
@@ -64,6 +65,12 @@ export function FeesAdmin() {
               onChange={(e) => setSettings({ ...settings, shippingCharged: Number(e.target.value) })} />
           </div>
         </div>
+        <div className="spacer" />
+        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input type="checkbox" checked={settings.freeShippingDefault}
+            onChange={(e) => setSettings({ ...settings, freeShippingDefault: e.target.checked })} />
+          Offer free shipping by default (buyer pays $0; your shipping cost is added to recommended prices)
+        </label>
         <div className="spacer" />
         <button onClick={save}>Save fees</button>
       </div>

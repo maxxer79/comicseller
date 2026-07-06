@@ -23,6 +23,8 @@ export interface RecommendationInput {
   highPrice?: number | null;
   salesPerMonth?: number | null; // liquidity signal
   trend?: Trend | null;
+  freeShipping?: boolean; // if true, buyer pays $0 shipping
+  shippingCost?: number | null; // your cost to ship (added to price when free shipping)
 }
 
 export interface RecommendationOutput {
@@ -136,9 +138,16 @@ export function recommend(input: RecommendationInput): RecommendationOutput {
     reasons.push("sell now — flat market, listing frees up space");
   }
 
+  // Free shipping: bake your shipping cost into the price so margin holds.
+  let finalPrice = recommendedPrice;
+  if (input.freeShipping && typeof input.shippingCost === "number" && input.shippingCost > 0) {
+    finalPrice = round2(recommendedPrice + input.shippingCost);
+    reasons.push(`+$${input.shippingCost.toFixed(2)} added to cover free shipping to the buyer`);
+  }
+
   const note = reasons.join("; ") + ".";
   return {
-    recommendedPrice,
+    recommendedPrice: finalPrice,
     recommendedFormat: format,
     recommendedAction: action,
     recommendationNote: note.charAt(0).toUpperCase() + note.slice(1),

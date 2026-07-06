@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, type Comic, type Trend } from "../api";
 import { buildEbayTitle, buildEbayDescription } from "../lib/ebay";
 import { Progress } from "../components/Spinner";
@@ -46,6 +46,9 @@ export function ComicDetail() {
     salesPerMonth: "",
     trend: "UNKNOWN" as Trend,
   });
+  const [copies, setCopies] = useState<{ id: string; sku: string; grade: number | null; recommendedPrice: string | null }[]>([]);
+  const [qty, setQty] = useState("1");
+  const [freeShip, setFreeShip] = useState<"default" | "on" | "off">("default");
 
   async function load() {
     if (!id) return;
@@ -72,6 +75,9 @@ export function ComicDetail() {
         holdUntil: c.holdUntil ? c.holdUntil.slice(0, 10) : "",
         watchNote: c.watchNote ?? "",
       });
+      setQty(String(c.quantity ?? 1));
+      setFreeShip(c.freeShipping === true ? "on" : c.freeShipping === false ? "off" : "default");
+      try { const cp = await api.getCopies(id); setCopies(cp.items); } catch { /* non-fatal */ }
     } catch (e) {
       setError((e as Error).message);
     }
@@ -81,6 +87,25 @@ export function ComicDetail() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  async function saveCopiesShipping() {
+    if (!id) return;
+    setBusy(true); setError(undefined); setMsg(undefined);
+    try {
+      const freeShipping = freeShip === "on" ? true : freeShip === "off" ? false : null;
+      await api.updateComic(id, { quantity: Math.max(1, parseInt(qty, 10) || 1), freeShipping });
+      setMsg("Copies & shipping saved.");
+      await load();
+    } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+  }
+  async function addCopy() {
+    if (!id) return;
+    setBusy(true); setError(undefined);
+    try {
+      const copy = await api.duplicateComic(id);
+      nav(`/comics/${copy.id}`);
+    } catch (e) { setError((e as Error).message); setBusy(false); }
+  }
 
   if (error) return <p className="error">{error}</p>;
   if (!comic) return <p className="muted">Loading…</p>;
@@ -409,6 +434,40 @@ export function ComicDetail() {
             <button onClick={saveMeta} disabled={busy}>
               Save details
             </button>
+          </div>
+
+          <div className="card">
+            <div className="page-head">
+              <h3 style={{ margin: 0 }}>Copies &amp; shipping</h3>
+              <button className="secondary" onClick={addCopy} disabled={busy}>+ Add another copy</button>
+            </div>
+            {copies.length > 0 && (
+              <p className="muted" style={{ fontSize: 13 }}>
+                You have {copies.length + 1} copies of this book:{" "}
+                {copies.map((cp, i) => (
+                  <span key={cp.id}>
+                    {i > 0 ? ", " : ""}
+                    <Link to={`/comics/${cp.id}`}>{cp.sku.slice(0, 8)}{cp.grade ? ` (${cp.grade})` : ""}</Link>
+                  </span>
+                ))}
+              </p>
+            )}
+            <div className="row">
+              <div className="col">
+                <label>Quantity (identical copies in one listing)</label>
+                <input type="number" min="1" value={qty} onChange={(e) => setQty(e.target.value)} />
+              </div>
+              <div className="col">
+                <label>Free shipping</label>
+                <select value={freeShip} onChange={(e) => setFreeShip(e.target.value as "default" | "on" | "off")}>
+                  <option value="default">Use store default</option>
+                  <option value="on">On — buyer pays $0</option>
+                  <option value="off">Off — buyer pays shipping</option>
+                </select>
+              </div>
+            </div>
+            <div className="spacer" />
+            <button onClick={saveCopiesShipping} disabled={busy}>Save copies &amp; shipping</button>
           </div>
 
           <div className="card">

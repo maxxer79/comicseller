@@ -21,6 +21,7 @@ export interface Comic {
   variant: string | null; year: number | null; upc: string | null; location: string | null; keyIssue: boolean; keyNotes: string | null;
   aiSuggestedGrade: number | null; grade: number | null; condition: string | null;
   graded: boolean; gradingCompany: string | null; status: ComicStatus;
+  quantity: number; freeShipping: boolean | null;
   recommendedPrice: string | null; recommendedFormat: ListingFormat | null;
   recommendedAction: SellAction | null; recommendationNote: string | null;
   watching: boolean; holdUntil: string | null; targetPrice: number | null; watchNote: string | null;
@@ -59,6 +60,7 @@ export interface Settings {
   feePercent: number; perOrderFee: number; shippingCost: number; shippingCharged: number;
   ebayCategoryId: string; ebayConditionId: string; ebayDuration: string;
   ebayShippingProfile: string; ebayPaymentProfile: string; ebayReturnProfile: string;
+  ebayFreeShippingProfile: string; freeShippingDefault: boolean;
   publicBaseUrl: string;
   aiProvider: AiProvider;
   anthropicModel: string; geminiModel: string; grokModel: string;
@@ -83,6 +85,10 @@ export interface BatchDetectResult {
   detected: number; created: number; comics: BatchDetectedComic[];
 }
 
+export interface CopiesResult {
+  count: number;
+  items: { id: string; sku: string; grade: number | null; status: ComicStatus; recommendedPrice: string | null }[];
+}
 export type AiProvider = "anthropic" | "gemini" | "grok";
 export interface ProviderStatus { configured: boolean; maskedKey: string | null; model: string; fromEnv: boolean; }
 export interface AiStatus { provider: AiProvider; mock: boolean; providers: Record<AiProvider, ProviderStatus>; }
@@ -202,6 +208,12 @@ export const api = {
   },
   async updateComic(id: string, patch: Partial<Comic>): Promise<Comic> {
     return request(`/comics/${id}`, jsonInit("PATCH", patch));
+  },
+  async duplicateComic(id: string): Promise<Comic> {
+    return request(`/comics/${id}/duplicate`, { method: "POST" });
+  },
+  async getCopies(id: string): Promise<CopiesResult> {
+    return request(`/comics/${id}/copies`);
   },
   async addPrice(id: string, body: {
     source?: string; averagePrice?: number; medianPrice?: number; lowPrice?: number;

@@ -15,6 +15,7 @@ const STR_FIELDS = [
   "ebayShippingProfile",
   "ebayPaymentProfile",
   "ebayReturnProfile",
+  "ebayFreeShippingProfile",
   "publicBaseUrl",
 ] as const;
 
@@ -71,6 +72,7 @@ settingsRouter.patch("/settings", requireAuth, requireAdmin, async (req, res, ne
     for (const key of STR_FIELDS) {
       if (typeof b[key] === "string") data[key] = b[key];
     }
+    if (typeof b.freeShippingDefault === "boolean") data.freeShippingDefault = b.freeShippingDefault;
 
     // AI provider selection + models
     if (isProvider(b.aiProvider)) data.aiProvider = b.aiProvider;

@@ -36,6 +36,10 @@ async function priceComic(comicId: string) {
   if (!comic) return null;
 
   const snap = comic.priceSnapshots[0];
+  const settings = await prisma.settings.upsert({ where: { id: "default" }, update: {}, create: { id: "default" } });
+  const c = comic as unknown as { freeShipping?: boolean | null };
+  const st = settings as unknown as { freeShippingDefault?: boolean; shippingCost?: number };
+  const effFreeShipping = c.freeShipping ?? st.freeShippingDefault ?? false;
   const rec = recommend({
     grade: comic.grade ? Number(comic.grade) : null,
     keyIssue: comic.keyIssue,
@@ -45,6 +49,8 @@ async function priceComic(comicId: string) {
     highPrice: snap?.highPrice ? Number(snap.highPrice) : null,
     salesPerMonth: snap?.salesPerMonth ?? null,
     trend: (snap?.trend as Trend | undefined) ?? null,
+    freeShipping: effFreeShipping,
+    shippingCost: st.shippingCost ?? null,
   });
 
   return prisma.comic.update({

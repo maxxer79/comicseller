@@ -63,6 +63,10 @@ model Comic {
   // --- Workflow state ---
   status ComicStatus @default(INTAKE)
 
+  // --- Listing options ---
+  quantity     Int      @default(1) // identical copies sold as one multi-qty listing
+  freeShipping Boolean? // per-item override; null = use Settings.freeShippingDefault
+
   // --- Recommendation output (Phase 3 fills these) ---
   recommendedPrice   Decimal?     @db.Decimal(10, 2)
   recommendedFormat  ListingFormat?
@@ -203,6 +207,7 @@ model Settings {
   perOrderFee     Float    @default(0.40)  // fixed per-order fee
   shippingCost    Float    @default(4.50)  // what it costs YOU to ship
   shippingCharged Float    @default(0)     // what the buyer pays for shipping
+  freeShippingDefault Boolean @default(false)   // store-wide: offer free shipping by default
 
   // eBay bulk-CSV (Seller Hub Reports / File Exchange) export settings
   ebayCategoryId      String @default("259104") // eBay category ID for comics
@@ -211,6 +216,7 @@ model Settings {
   ebayShippingProfile String @default("")        // business policy name
   ebayPaymentProfile  String @default("")        // business policy name
   ebayReturnProfile   String @default("")        // business policy name
+  ebayFreeShippingProfile String @default("")    // business policy name used for free-shipping items
   publicBaseUrl       String @default("")        // e.g. https://comics.example.com (for photo URLs)
 
   // --- AI provider configuration ---

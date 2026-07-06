@@ -12,6 +12,7 @@ export interface EbayExportSettings {
   ebayShippingProfile: string;
   ebayPaymentProfile: string;
   ebayReturnProfile: string;
+  ebayFreeShippingProfile: string;
   publicBaseUrl: string;
 }
 
@@ -36,6 +37,8 @@ export interface CsvComic {
   location: string | null;
   recommendedPrice: unknown;
   recommendedFormat: string | null;
+  freeShipping: boolean;
+  quantity: number;
   photos: CsvPhoto[];
 }
 
@@ -66,6 +69,7 @@ function buildDescription(c: CsvComic): string {
   else if (c.grade) lines.push(`Condition: raw, estimated grade ${c.grade}${c.condition ? ` (${c.condition})` : ""}.`);
   else lines.push("Condition: see photos.");
   lines.push("Please review photos, which form part of the description.");
+  if (c.freeShipping) lines.push("Free shipping!");
   lines.push("Ships securely in a bag, board, and rigid mailer.");
   return lines.join(" ");
 }
@@ -134,10 +138,10 @@ export function buildEbayCsv(comics: CsvComic[], s: EbayExportSettings): string 
       format,
       duration,
       price,
-      "1",
+      String(c.quantity && c.quantity > 0 ? c.quantity : 1),
       c.sku,
       c.location ?? "",
-      s.ebayShippingProfile,
+      c.freeShipping && s.ebayFreeShippingProfile ? s.ebayFreeShippingProfile : s.ebayShippingProfile,
       s.ebayPaymentProfile,
       s.ebayReturnProfile,
       c.title,

@@ -22,6 +22,7 @@ export function EbayAdmin() {
         ebayShippingProfile: settings.ebayShippingProfile,
         ebayPaymentProfile: settings.ebayPaymentProfile,
         ebayReturnProfile: settings.ebayReturnProfile,
+        ebayFreeShippingProfile: settings.ebayFreeShippingProfile,
         publicBaseUrl: settings.publicBaseUrl,
       });
       setSettings(s);
@@ -72,6 +73,9 @@ export function EbayAdmin() {
             <input value={settings.ebayReturnProfile} onChange={(e) => setSettings({ ...settings, ebayReturnProfile: e.target.value })} />
           </div>
         </div>
+        <label>Free-shipping policy (business policy used for free-shipping items)</label>
+        <input value={settings.ebayFreeShippingProfile} onChange={(e) => setSettings({ ...settings, ebayFreeShippingProfile: e.target.value })} placeholder="e.g. Free Shipping" />
+        <p className="muted" style={{ fontSize: 12 }}>Create a free-shipping business policy in eBay and put its exact name here. Items marked free shipping use it; others use the Shipping policy above.</p>
         <label>Public base URL (for photo links, e.g. https://comics.example.com)</label>
         <input value={settings.publicBaseUrl} onChange={(e) => setSettings({ ...settings, publicBaseUrl: e.target.value })} placeholder="https://…" />
         <div className="spacer" />

@@ -101,6 +101,12 @@ comicsRouter.patch("/comics/:id/photos/:photoId", async (req, res, next) => {
     if (data.isPrimary === true) {
       await prisma.photo.updateMany({ where: { comicId: req.params.id }, data: { isPrimary: false } });
     }
+    // Listing options
+    if (b.quantity === null || typeof b.quantity === "number") {
+      data.quantity = typeof b.quantity === "number" ? Math.max(1, Math.floor(b.quantity)) : 1;
+    }
+    if (b.freeShipping === null || typeof b.freeShipping === "boolean") data.freeShipping = b.freeShipping;
+
     if (Object.keys(data).length === 0) {
       return res.status(400).json({ error: "No valid fields to update" });
     }
@@ -412,6 +418,48 @@ comicsRouter.delete("/comics/:id", async (req, res, next) => {
     await Promise.all(comic.photos.map((p: { storageKey: string }) => removePhoto(p.storageKey)));
     await prisma.comic.delete({ where: { id: comic.id } });
     res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** POST /comics/:id/duplicate — clone identification into a new INTAKE copy. */
+comicsRouter.post("/comics/:id/duplicate", async (req, res, next) => {
+  try {
+    const src = await prisma.comic.findUnique({ where: { id: req.params.id } });
+    if (!src) return res.status(404).json({ error: "Comic not found" });
+    const copy = await prisma.comic.create({
+      data: {
+        title: src.title,
+        issueNumber: src.issueNumber,
+        publisher: src.publisher,
+        variant: src.variant,
+        year: src.year,
+        upc: src.upc,
+        keyIssue: src.keyIssue,
+        keyNotes: src.keyNotes,
+        location: src.location,
+        status: "INTAKE",
+      },
+    });
+    const full = await prisma.comic.findUnique({ where: { id: copy.id }, include: comicInclude });
+    res.status(201).json(full);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** GET /comics/:id/copies — other records of the same title + issue. */
+comicsRouter.get("/comics/:id/copies", async (req, res, next) => {
+  try {
+    const comic = await prisma.comic.findUnique({ where: { id: req.params.id } });
+    if (!comic) return res.status(404).json({ error: "Comic not found" });
+    const items = await prisma.comic.findMany({
+      where: { id: { not: comic.id }, title: comic.title, issueNumber: comic.issueNumber },
+      select: { id: true, sku: true, grade: true, status: true, recommendedPrice: true },
+      orderBy: { createdAt: "asc" },
+    });
+    res.json({ count: items.length, items });
   } catch (err) {
     next(err);
   }

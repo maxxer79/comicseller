@@ -51,6 +51,9 @@ exportRouter.get("/export/ebay.csv", async (req, res, next) => {
       location: c.location,
       recommendedPrice: c.recommendedPrice,
       recommendedFormat: c.recommendedFormat,
+      freeShipping: ((c as unknown as { freeShipping?: boolean | null }).freeShipping
+        ?? (settings as unknown as { freeShippingDefault?: boolean }).freeShippingDefault ?? false),
+      quantity: ((c as unknown as { quantity?: number }).quantity ?? 1),
       photos: c.photos.map((p: { url: string | null; isPrimary: boolean }) => ({
         url: p.url,
         isPrimary: p.isPrimary,
@@ -64,6 +67,7 @@ exportRouter.get("/export/ebay.csv", async (req, res, next) => {
       ebayShippingProfile: settings.ebayShippingProfile,
       ebayPaymentProfile: settings.ebayPaymentProfile,
       ebayReturnProfile: settings.ebayReturnProfile,
+      ebayFreeShippingProfile: (settings as unknown as { ebayFreeShippingProfile?: string }).ebayFreeShippingProfile ?? "",
       publicBaseUrl: settings.publicBaseUrl,
     };
 
