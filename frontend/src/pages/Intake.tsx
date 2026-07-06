@@ -10,6 +10,7 @@ export function Intake() {
   const [preview, setPreview] = useState<string>();
   const [title, setTitle] = useState("");
   const [upc, setUpc] = useState("");
+  const [supplement, setSupplement] = useState("");
   const [dupWarning, setDupWarning] = useState<string>();
   const [matchNote, setMatchNote] = useState<string>();
   const [scanning, setScanning] = useState(false);
@@ -23,13 +24,18 @@ export function Intake() {
     setPreview(f ? URL.createObjectURL(f) : undefined);
   }
 
-  async function onDetected(code: string) {
-    setUpc(code);
-    setScanning(false);
+  function fullUpc(main: string, sup: string): string {
+    const m = (main || "").replace(/\D/g, "");
+    const su = (sup || "").replace(/\D/g, "");
+    return m.length === 12 && su.length === 5 ? m + su : m;
+  }
+
+  async function runLookup(digits: string) {
     setDupWarning(undefined);
     setMatchNote(undefined);
+    if (!digits) return;
     try {
-      const dup = await api.findByUpc(code);
+      const dup = await api.findByUpc(digits);
       if (dup.total > 0) {
         setDupWarning(
           `Heads up: you already have ${dup.total} comic(s) with this UPC in inventory.`
@@ -39,7 +45,7 @@ export function Intake() {
       /* non-fatal */
     }
     try {
-      const res = await api.lookupUpc(code);
+      const res = await api.lookupUpc(digits);
       if (res.found && res.match) {
         const m = res.match;
         setTitle((t) => t || m.series);
@@ -48,11 +54,30 @@ export function Intake() {
             `${m.publisher ? " · " + m.publisher : ""}${m.year ? " · " + m.year : ""} (GCD)`
         );
       } else if (res.datasetSize === 0) {
-        setMatchNote("No GCD data loaded yet — see docs/gcd-upc-lookup.md to enable auto-fill.");
+        setMatchNote(
+          "No barcode database loaded — use \u201CCreate & identify with AI\u201D below to fill from the cover (or load GCD data: docs/gcd-upc-lookup.md)."
+        );
+      } else {
+        setMatchNote(
+          "No barcode match — use \u201CCreate & identify with AI\u201D below to read the details off the cover."
+        );
       }
     } catch {
       /* non-fatal */
     }
+  }
+
+  async function onDetected(code: string) {
+    const digits = (code || "").replace(/\D/g, "");
+    setScanning(false);
+    // If the scanner also captured the 5-digit add-on, split it into the fields.
+    if (digits.length === 17) {
+      setUpc(digits.slice(0, 12));
+      setSupplement(digits.slice(12));
+    } else {
+      setUpc(digits);
+    }
+    await runLookup(digits);
   }
 
   async function submit(runIdentify: boolean) {
@@ -60,7 +85,7 @@ export function Intake() {
     setError(undefined);
     try {
       setStep("Creating intake…");
-      const comic = await api.createComic(file, title || undefined, upc || undefined);
+      const comic = await api.createComic(file, title || undefined, fullUpc(upc, supplement) || undefined);
       if (runIdentify && file) {
         setStep("Identifying from photo…");
         try {
@@ -104,6 +129,15 @@ export function Intake() {
               📷 Scan
             </button>
           </div>
+
+          <label>Add-on (5-digit supplement, optional)</label>
+          <input
+            value={supplement}
+            onChange={(e) => setSupplement(e.target.value)}
+            onBlur={() => (upc ? runLookup(fullUpc(upc, supplement)) : undefined)}
+            placeholder="e.g. 00131 — the small barcode next to the main one"
+            maxLength={5}
+          />
           {dupWarning && (
             <p className="warn" style={{ color: "var(--warn)", fontSize: 13 }}>
               {dupWarning}

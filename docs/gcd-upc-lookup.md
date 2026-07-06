@@ -76,3 +76,32 @@ docker exec -w /app/backend <app-container> node scripts/import-gcd.mjs /tmp/gcd
   the app returns the best match plus candidates.
 - This is a pluggable provider. If you later get a Key Collector / CovrPrice API,
   it slots in alongside GCD without changing the scan flow.
+
+## Quick test (before the full load)
+
+A tiny sample file is included so you can verify the import pipeline end-to-end
+before downloading the full GCD dump:
+
+```bash
+cd backend
+node scripts/import-gcd.mjs scripts/gcd-sample.csv --replace
+```
+
+Then check it loaded and try a lookup:
+
+```bash
+# from anywhere the API is running
+curl http://localhost:4000/lookup/status          # { datasetSize: 6, ready: true }
+curl http://localhost:4000/lookup/upc/75960608625300111   # Amazing Spider-Man #800
+```
+
+The rows in `scripts/gcd-sample.csv` are illustrative examples for testing the
+pipeline — replace them with the real GCD export for full coverage. Once the
+sample works, repeat step "One-time data load" above with your full CSV.
+
+## Don't want to load GCD?
+
+You don't have to. The **"Create & identify with AI"** button on the Add screen
+reads the *cover photo* and fills in title, issue, publisher, year, and a
+suggested grade with no barcode or GCD data required — see Admin → AI to pick a
+provider. UPC/GCD lookup is just an optional offline shortcut for barcoded books.

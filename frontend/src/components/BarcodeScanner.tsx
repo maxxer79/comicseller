@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
+import { DecodeHintType } from "@zxing/library";
 
 /**
  * Camera barcode scanner (works on phones). Opens the rear camera, reads a
@@ -17,7 +18,12 @@ export function BarcodeScanner({
   const [error, setError] = useState<string>();
 
   useEffect(() => {
-    const reader = new BrowserMultiFormatReader();
+    // Ask ZXing to also read the 2/5-digit add-on that comic barcodes carry
+    // (encodes issue number + printing). Add-on capture is best-effort.
+    const hints = new Map();
+    hints.set(DecodeHintType.ALLOWED_EAN_EXTENSIONS, [2, 5]);
+    hints.set(DecodeHintType.TRY_HARDER, true);
+    const reader = new BrowserMultiFormatReader(hints);
     let stopFn: (() => void) | undefined;
     let cancelled = false;
 
