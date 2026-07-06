@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { Progress } from "../components/Spinner";
 import { BarcodeScanner } from "../components/BarcodeScanner";
+import { parseComicBarcode } from "../lib/comicBarcode";
 
 export function Intake() {
   const nav = useNavigate();
@@ -11,6 +12,8 @@ export function Intake() {
   const [title, setTitle] = useState("");
   const [upc, setUpc] = useState("");
   const [supplement, setSupplement] = useState("");
+  const [publisher, setPublisher] = useState("");
+  const [barcodeInfo, setBarcodeInfo] = useState<string>();
   const [dupWarning, setDupWarning] = useState<string>();
   const [matchNote, setMatchNote] = useState<string>();
   const [scanning, setScanning] = useState(false);
@@ -34,6 +37,20 @@ export function Intake() {
     setDupWarning(undefined);
     setMatchNote(undefined);
     if (!digits) return;
+    const parsed = parseComicBarcode(digits);
+    if (parsed) {
+      if (parsed.publisher) setPublisher((cur) => cur || parsed.publisher!);
+      const g = parsed.supplementDecodes;
+      const sup = parsed.hasSupplement && g.length === 2
+        ? ` · issue ${g[0].issue} / cover ${g[0].cover} / printing ${g[0].printing}  (alt read: ${g[1].issue} / ${g[1].cover} / ${g[1].printing})`
+        : " · no 5-digit add-on captured";
+      setBarcodeInfo(
+        `${parsed.publisher ?? "Unknown publisher"} · series ${parsed.seriesCode}${sup}` +
+          `${parsed.checkDigitValid ? "" : "  ⚠ check digit doesn\u2019t match — re-scan"}`
+      );
+    } else {
+      setBarcodeInfo(undefined);
+    }
     try {
       const dup = await api.findByUpc(digits);
       if (dup.total > 0) {
@@ -85,7 +102,7 @@ export function Intake() {
     setError(undefined);
     try {
       setStep("Creating intake…");
-      const comic = await api.createComic(file, title || undefined, fullUpc(upc, supplement) || undefined);
+      const comic = await api.createComic(file, title || undefined, fullUpc(upc, supplement) || undefined, publisher || undefined);
       if (runIdentify && file) {
         setStep("Identifying from photo…");
         try {
@@ -148,12 +165,24 @@ export function Intake() {
               {matchNote}
             </p>
           )}
+          {barcodeInfo && (
+            <p className="muted" style={{ fontSize: 12 }}>
+              Barcode: {barcodeInfo}
+            </p>
+          )}
 
           <label>Title (optional — AI can fill this in)</label>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. The Amazing Spider-Man"
+          />
+
+          <label>Publisher (auto-filled from barcode when known)</label>
+          <input
+            value={publisher}
+            onChange={(e) => setPublisher(e.target.value)}
+            placeholder="e.g. Marvel Comics"
           />
         </div>
         <div className="col" style={{ maxWidth: 200 }}>

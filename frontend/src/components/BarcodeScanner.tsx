@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
-import { DecodeHintType } from "@zxing/library";
+import { BarcodeFormat, DecodeHintType } from "@zxing/library";
 
 /**
- * Camera barcode scanner (works on phones). Opens the rear camera, reads a
- * UPC/EAN, and calls onDetected with the digits. Uses @zxing/browser which
- * works across Chrome, Safari (iOS 11+), and Android.
+ * Camera barcode scanner (works on phones). Opens the rear camera and reads a
+ * comic barcode. Comic barcodes are a 12-digit UPC-A plus a 5-digit add-on that
+ * encodes issue/cover/printing, so the scanner PREFERS a full 17-digit read:
+ * when it sees the 12-digit main code but not the add-on, it keeps scanning and
+ * offers a "use main code only" fallback so nothing gets stuck.
  */
 export function BarcodeScanner({
   onDetected,
@@ -15,32 +17,47 @@ export function BarcodeScanner({
   onClose: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const controlsRef = useRef<{ stop: () => void }>();
+  const acceptedRef = useRef(false);
   const [error, setError] = useState<string>();
+  const [pendingMain, setPendingMain] = useState<string>();
 
   useEffect(() => {
-    // Ask ZXing to also read the 2/5-digit add-on that comic barcodes carry
-    // (encodes issue number + printing). Add-on capture is best-effort.
+    // Focus the decoder on UPC/EAN and ask it to also read the 2/5-digit add-on.
     const hints = new Map();
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.UPC_A, BarcodeFormat.EAN_13]);
     hints.set(DecodeHintType.ALLOWED_EAN_EXTENSIONS, [2, 5]);
     hints.set(DecodeHintType.TRY_HARDER, true);
     const reader = new BrowserMultiFormatReader(hints);
-    let stopFn: (() => void) | undefined;
-    let cancelled = false;
+
+    // Higher-resolution rear camera makes the tiny add-on far more readable.
+    const constraints: MediaStreamConstraints = {
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+      },
+    };
 
     (async () => {
       try {
-        const controls = await reader.decodeFromVideoDevice(
-          undefined, // default = rear camera on phones
+        const controls = await reader.decodeFromConstraints(
+          constraints,
           videoRef.current!,
-          (result, _err, controls) => {
-            if (result && !cancelled) {
-              cancelled = true;
+          (result) => {
+            if (acceptedRef.current || !result) return;
+            const digits = result.getText().replace(/\D/g, "");
+            if (digits.length >= 17) {
+              acceptedRef.current = true;
               controls.stop();
-              onDetected(result.getText());
+              onDetected(digits);
+            } else if (digits.length === 12) {
+              // Keep scanning for the add-on, but remember the main code.
+              setPendingMain((prev) => prev ?? digits);
             }
           }
         );
-        stopFn = () => controls.stop();
+        controlsRef.current = controls;
       } catch (e) {
         setError(
           (e as Error).message ||
@@ -50,10 +67,18 @@ export function BarcodeScanner({
     })();
 
     return () => {
-      cancelled = true;
-      stopFn?.();
+      acceptedRef.current = true;
+      controlsRef.current?.stop();
     };
   }, [onDetected]);
+
+  function useMainOnly() {
+    if (pendingMain && !acceptedRef.current) {
+      acceptedRef.current = true;
+      controlsRef.current?.stop();
+      onDetected(pendingMain);
+    }
+  }
 
   return (
     <div className="scanner-overlay" onClick={onClose}>
@@ -64,12 +89,22 @@ export function BarcodeScanner({
         <div className="scanner-body">
           {error ? (
             <p className="error">{error}</p>
+          ) : pendingMain ? (
+            <p className="muted">
+              Main code {pendingMain} read — hold steady to capture the issue
+              add-on (the small barcode to its right)…
+            </p>
           ) : (
             <p className="muted">Point the camera at the comic's barcode…</p>
           )}
-          <button className="secondary" onClick={onClose}>
-            Cancel
-          </button>
+          <div className="pill-row">
+            {pendingMain && (
+              <button onClick={useMainOnly}>Use main code only</button>
+            )}
+            <button className="secondary" onClick={onClose}>
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     </div>

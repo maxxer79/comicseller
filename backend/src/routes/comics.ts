@@ -34,7 +34,12 @@ comicsRouter.post("/comics", upload.single("photo"), async (req, res, next) => {
         ? req.body.upc.trim()
         : null;
 
-    const comic = await prisma.comic.create({ data: { title, upc } });
+    const publisher =
+      typeof req.body.publisher === "string" && req.body.publisher.trim()
+        ? req.body.publisher.trim()
+        : null;
+
+    const comic = await prisma.comic.create({ data: { title, upc, publisher } });
 
     if (req.file) {
       const saved = await savePhoto(req.file.buffer, req.file.mimetype, req.file.originalname);

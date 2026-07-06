@@ -173,10 +173,11 @@ export const api = {
   async cooking(): Promise<{ total: number; items: Comic[] }> {
     return request(`/comics?watching=true&limit=200`);
   },
-  async createComic(file: File | null, title?: string, upc?: string): Promise<Comic> {
+  async createComic(file: File | null, title?: string, upc?: string, publisher?: string): Promise<Comic> {
     const form = new FormData();
     if (title) form.append("title", title);
     if (upc) form.append("upc", upc);
+    if (publisher) form.append("publisher", publisher);
     if (file) form.append("photo", file);
     return request(`/comics`, { method: "POST", body: form });
   },
