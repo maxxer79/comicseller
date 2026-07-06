@@ -219,7 +219,7 @@ model Settings {
   geminiKeyEnc    String?
   grokKeyEnc      String?
   anthropicModel  String  @default("claude-sonnet-4-5")
-  geminiModel     String  @default("gemini-2.0-flash")
+  geminiModel     String  @default("gemini-2.5-flash")
   grokModel       String  @default("grok-2-vision-1212")
 }
 

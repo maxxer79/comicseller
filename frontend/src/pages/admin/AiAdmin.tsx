@@ -3,7 +3,7 @@ import { api, type Settings, type AiProvider, type AiTestResult } from "../../ap
 
 const PROVIDERS: { id: AiProvider; label: string; keyUrl: string; keyHint: string; modelHint: string }[] = [
   { id: "anthropic", label: "Anthropic (Claude)", keyUrl: "https://console.anthropic.com/settings/keys", keyHint: "console.anthropic.com", modelHint: "e.g. claude-sonnet-4-5" },
-  { id: "gemini", label: "Google (Gemini)", keyUrl: "https://aistudio.google.com/apikey", keyHint: "aistudio.google.com/apikey", modelHint: "e.g. gemini-2.0-flash" },
+  { id: "gemini", label: "Google (Gemini)", keyUrl: "https://aistudio.google.com/apikey", keyHint: "aistudio.google.com/apikey", modelHint: "e.g. gemini-2.5-flash" },
   { id: "grok", label: "xAI (Grok)", keyUrl: "https://console.x.ai", keyHint: "console.x.ai", modelHint: "e.g. grok-2-vision-1212" },
 ];
 

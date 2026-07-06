@@ -14,7 +14,7 @@ export const PROVIDER_LABELS: Record<AiProvider, string> = {
 
 export const DEFAULT_MODELS: Record<AiProvider, string> = {
   anthropic: "claude-sonnet-4-5",
-  gemini: "gemini-2.0-flash",
+  gemini: "gemini-2.5-flash",
   grok: "grok-2-vision-1212",
 };
 
