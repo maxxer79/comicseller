@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, type UpcMatch } from "../api";
 import { Progress } from "../components/Spinner";
@@ -20,6 +20,17 @@ export function Intake() {
   }>();
   const [candidates, setCandidates] = useState<UpcMatch[]>([]);
   const [searchNum, setSearchNum] = useState("");
+  const [searchYear, setSearchYear] = useState("");
+
+  // Narrow the GCD candidate list live as the issue # / year are typed.
+  useEffect(() => {
+    if (title.trim().length < 2) return;
+    const t = setTimeout(() => {
+      void gcdSearch(title, searchNum, searchYear ? Number(searchYear) : undefined);
+    }, 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchNum, searchYear]);
   const [dupWarning, setDupWarning] = useState<string>();
   const [matchNote, setMatchNote] = useState<string>();
   const [scanning, setScanning] = useState(false);
@@ -156,7 +167,9 @@ export function Intake() {
         keyNotes: sug.keyNotes,
         aiSuggestedGrade: sug.suggestedGrade,
       });
-      // Seed GCD title candidates from what the AI read (helps pick the exact printing).
+      // Seed the GCD filters + candidate list from what the AI read.
+      setSearchNum(sug.issueNumber ?? "");
+      setSearchYear(sug.year ? String(sug.year) : "");
       void gcdSearch(sug.title ?? "", sug.issueNumber ?? undefined, sug.year ?? undefined);
       const bits = [
         sug.title ? `${sug.title}${sug.issueNumber ? " #" + sug.issueNumber : ""}` : null,
@@ -309,13 +322,20 @@ export function Intake() {
             <input
               value={searchNum}
               onChange={(e) => setSearchNum(e.target.value)}
-              placeholder="Issue # (optional)"
-              style={{ maxWidth: 130 }}
+              placeholder="Issue #"
+              style={{ maxWidth: 110 }}
+            />
+            <input
+              value={searchYear}
+              onChange={(e) => setSearchYear(e.target.value)}
+              placeholder="Year"
+              maxLength={4}
+              style={{ maxWidth: 90 }}
             />
             <button
               type="button"
               className="secondary"
-              onClick={() => gcdSearch(title, searchNum)}
+              onClick={() => gcdSearch(title, searchNum, searchYear ? Number(searchYear) : undefined)}
               disabled={title.trim().length < 2}
               style={{ whiteSpace: "nowrap" }}
             >
