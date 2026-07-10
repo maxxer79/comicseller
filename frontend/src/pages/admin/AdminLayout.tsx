@@ -6,6 +6,7 @@ const TABS = [
   { to: "/admin/fees", label: "Fees & shipping" },
   { to: "/admin/ebay", label: "eBay export" },
   { to: "/admin/ai", label: "AI" },
+  { to: "/admin/gcd", label: "UPC data" },
 ];
 
 export function AdminLayout() {

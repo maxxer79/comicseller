@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { lookupByUpc, gcdIssueCount } from "../services/upcLookup.js";
+import { gcdStatus } from "../services/gcdImport.js";
 
 export const lookupRouter = Router();
 
@@ -21,8 +22,8 @@ lookupRouter.get("/lookup/upc/:upc", async (req, res, next) => {
 /** GET /lookup/status — whether the GCD dataset is loaded. */
 lookupRouter.get("/lookup/status", async (_req, res, next) => {
   try {
-    const datasetSize = await gcdIssueCount();
-    res.json({ datasetSize, ready: datasetSize > 0 });
+    const st = await gcdStatus();
+    res.json({ ...st, ready: st.datasetSize > 0 });
   } catch (err) {
     next(err);
   }

@@ -105,3 +105,28 @@ You don't have to. The **"Create & identify with AI"** button on the Add screen
 reads the *cover photo* and fills in title, issue, publisher, year, and a
 suggested grade with no barcode or GCD data required — see Admin → AI to pick a
 provider. UPC/GCD lookup is just an optional offline shortcut for barcoded books.
+
+## Recommended: from the GCD PostgreSQL dump
+
+Comicseller runs PostgreSQL, so the GCD **PostgreSQL** dump is the easiest to
+use — you can restore and query it with tools you already have.
+
+1. Download the PostgreSQL dump from comics.org → Downloads (free account).
+2. Restore it into a scratch database:
+
+   ```bash
+   createdb gcd
+   pg_restore -d gcd path/to/gcd-postgres-dump   # or: psql -d gcd -f dump.sql
+   ```
+
+3. Export just the barcode columns we need:
+
+   ```bash
+   psql -d gcd -c "\copy (SELECT i.barcode, s.name AS series, i.number, p.name AS publisher, LEFT(i.key_date,4) AS year FROM gcd_issue i JOIN gcd_series s ON i.series_id = s.id JOIN gcd_publisher p ON s.publisher_id = p.id WHERE i.barcode IS NOT NULL AND i.barcode <> '') TO 'gcd_barcodes.csv' WITH CSV HEADER"
+   ```
+
+4. In the app, go to **Admin → UPC data** and either **upload** `gcd_barcodes.csv`
+   or, if it's already on the server, **import from its path**. Tick "Replace" for
+   a full refresh.
+
+GCD regenerates the dump about every two weeks — repeat steps 1-4 to update.

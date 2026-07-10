@@ -19,6 +19,7 @@ import { UsersAdmin } from "./pages/admin/UsersAdmin";
 import { FeesAdmin } from "./pages/admin/FeesAdmin";
 import { EbayAdmin } from "./pages/admin/EbayAdmin";
 import { AiAdmin } from "./pages/admin/AiAdmin";
+import { GcdAdmin } from "./pages/admin/GcdAdmin";
 
 function useTheme(): [string, () => void] {
   const [theme, setTheme] = useState<string>(
@@ -145,6 +146,7 @@ export function App() {
             <Route path="fees" element={<FeesAdmin />} />
             <Route path="ebay" element={<EbayAdmin />} />
             <Route path="ai" element={<AiAdmin />} />
+            <Route path="gcd" element={<GcdAdmin />} />
           </Route>
           <Route path="*" element={<p>Not found.</p>} />
         </Routes>

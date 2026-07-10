@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api, type Identification } from "../api";
+import { api } from "../api";
 import { Progress } from "../components/Spinner";
 import { BarcodeScanner } from "../components/BarcodeScanner";
 import { parseComicBarcode } from "../lib/comicBarcode";
@@ -14,7 +14,10 @@ export function Intake() {
   const [supplement, setSupplement] = useState("");
   const [publisher, setPublisher] = useState("");
   const [barcodeInfo, setBarcodeInfo] = useState<string>();
-  const [suggestion, setSuggestion] = useState<Identification>();
+  const [filled, setFilled] = useState<{
+    issueNumber: string | null; year: number | null; variant: string | null;
+    keyIssue: boolean; keyNotes: string | null; aiSuggestedGrade: number | null;
+  }>();
   const [dupWarning, setDupWarning] = useState<string>();
   const [matchNote, setMatchNote] = useState<string>();
   const [scanning, setScanning] = useState(false);
@@ -99,15 +102,58 @@ export function Intake() {
   }
 
   async function autoFill() {
-    if (!file) return;
+    const digitsFull = fullUpc(upc, supplement);
     setBusy(true);
     setError(undefined);
+    // 1) Try the local GCD data first (instant, no AI, no quota used).
+    if (digitsFull) {
+      setStep("Checking the UPC database…");
+      try {
+        const res = await api.lookupUpc(digitsFull);
+        if (res.found && res.match) {
+          const m = res.match;
+          if (m.series) setTitle((t) => t || m.series);
+          if (m.publisher) setPublisher((pub) => pub || m.publisher!);
+          setFilled({
+            issueNumber: m.number,
+            year: m.year,
+            variant: null,
+            keyIssue: false,
+            keyNotes: null,
+            aiSuggestedGrade: null,
+          });
+          setMatchNote(
+            `Matched in your GCD data: ${m.series}${m.number ? " #" + m.number : ""}` +
+              `${m.publisher ? " · " + m.publisher : ""}${m.year ? " · " + m.year : ""}. No AI needed.`
+          );
+          setBusy(false);
+          setStep(undefined);
+          return;
+        }
+      } catch {
+        /* fall through to AI */
+      }
+    }
+    // 2) Fall back to the AI cover read.
+    if (!file) {
+      setError("No UPC match in your GCD data — add a cover photo so the AI can read it.");
+      setBusy(false);
+      setStep(undefined);
+      return;
+    }
     setStep("Reading the cover with AI…");
     try {
       const { suggestion: sug } = await api.identifyPreview(file);
-      setSuggestion(sug);
       if (sug.title) setTitle((t) => t || sug.title!);
       if (sug.publisher) setPublisher((pub) => pub || sug.publisher!);
+      setFilled({
+        issueNumber: sug.issueNumber,
+        year: sug.year,
+        variant: sug.variant,
+        keyIssue: sug.keyIssue,
+        keyNotes: sug.keyNotes,
+        aiSuggestedGrade: sug.suggestedGrade,
+      });
       const bits = [
         sug.title ? `${sug.title}${sug.issueNumber ? " #" + sug.issueNumber : ""}` : null,
         sug.publisher,
@@ -131,16 +177,7 @@ export function Intake() {
     setError(undefined);
     try {
       setStep("Creating intake…");
-      const extra = suggestion
-        ? {
-            issueNumber: suggestion.issueNumber,
-            year: suggestion.year,
-            variant: suggestion.variant,
-            keyIssue: suggestion.keyIssue,
-            keyNotes: suggestion.keyNotes,
-            aiSuggestedGrade: suggestion.suggestedGrade,
-          }
-        : undefined;
+      const extra = filled;
       const comic = await api.createComic(
         file,
         title || undefined,
@@ -148,7 +185,7 @@ export function Intake() {
         publisher || undefined,
         extra
       );
-      if (runIdentify && !suggestion && file) {
+      if (runIdentify && !filled && file) {
         setStep("Identifying from photo…");
         try {
           await api.identify(comic.id);
@@ -245,15 +282,15 @@ export function Intake() {
 
       {!busy && (
         <div className="pill-row">
-          {file && (
-            <button onClick={autoFill}>✨ Auto-fill from photo</button>
+          {(file || fullUpc(upc, supplement)) && (
+            <button onClick={autoFill}>✨ Auto-fill (UPC or photo)</button>
           )}
           <button
-            className={suggestion ? undefined : "secondary"}
+            className={filled ? undefined : "secondary"}
             onClick={() => submit(true)}
-            disabled={!file}
+            disabled={!file && !filled}
           >
-            {suggestion ? "Create" : "Create &amp; identify with AI"}
+            {filled ? "Create" : "Create &amp; identify with AI"}
           </button>
           <button className="secondary" onClick={() => submit(false)}>
             Create without AI

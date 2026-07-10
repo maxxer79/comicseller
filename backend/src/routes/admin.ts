@@ -3,6 +3,10 @@ import { prisma } from "../lib/prisma.js";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
 import { hashPassword } from "../services/auth.js";
 import { getVersionInfo } from "../lib/version.js";
+import multer from "multer";
+import os from "node:os";
+import { promises as fs } from "node:fs";
+import { importGcdFromFile, gcdStatus } from "../services/gcdImport.js";
 
 export const adminRouter = Router();
 
@@ -130,6 +134,64 @@ adminRouter.delete("/admin/users/:id", requireAuth, requireAdmin, async (req, re
     }
     await prisma.user.delete({ where: { id: req.params.id } });
     res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GCD (UPC metadata) data management
+// ---------------------------------------------------------------------------
+
+const gcdUpload = multer({
+  storage: multer.diskStorage({
+    destination: os.tmpdir(),
+    filename: (_req, _file, cb) => cb(null, `gcd-${Date.now()}.csv`),
+  }),
+  limits: { fileSize: 400 * 1024 * 1024 }, // barcode CSV can be tens of MB
+});
+
+/** GET /admin/gcd/status — rows loaded + last updated. */
+adminRouter.get("/admin/gcd/status", requireAuth, requireAdmin, async (_req, res, next) => {
+  try {
+    res.json(await gcdStatus());
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** POST /admin/gcd/import?replace=1 — upload a prepared barcode CSV and load it. */
+adminRouter.post(
+  "/admin/gcd/import",
+  requireAuth,
+  requireAdmin,
+  gcdUpload.single("file"),
+  async (req, res, next) => {
+    const tmp = req.file?.path;
+    try {
+      if (!tmp) return res.status(400).json({ error: "No file uploaded" });
+      const replace = req.query.replace === "1" || req.query.replace === "true";
+      const result = await importGcdFromFile(tmp, replace);
+      const st = await gcdStatus();
+      res.json({ ...result, ...st });
+    } catch (err) {
+      next(err);
+    } finally {
+      if (tmp) await fs.unlink(tmp).catch(() => {});
+    }
+  }
+);
+
+/** POST /admin/gcd/import-path — import a CSV already present on the server. */
+adminRouter.post("/admin/gcd/import-path", requireAuth, requireAdmin, async (req, res, next) => {
+  try {
+    const b = (req.body ?? {}) as { path?: unknown; replace?: unknown };
+    if (typeof b.path !== "string" || !b.path.trim()) {
+      return res.status(400).json({ error: "path is required" });
+    }
+    const result = await importGcdFromFile(b.path.trim(), b.replace === true || b.replace === "true");
+    const st = await gcdStatus();
+    res.json({ ...result, ...st });
   } catch (err) {
     next(err);
   }
