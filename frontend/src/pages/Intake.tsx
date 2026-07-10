@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api } from "../api";
+import { api, type UpcMatch } from "../api";
 import { Progress } from "../components/Spinner";
 import { BarcodeScanner } from "../components/BarcodeScanner";
 import { parseComicBarcode } from "../lib/comicBarcode";
@@ -18,6 +18,8 @@ export function Intake() {
     issueNumber: string | null; year: number | null; variant: string | null;
     keyIssue: boolean; keyNotes: string | null; aiSuggestedGrade: number | null;
   }>();
+  const [candidates, setCandidates] = useState<UpcMatch[]>([]);
+  const [searchNum, setSearchNum] = useState("");
   const [dupWarning, setDupWarning] = useState<string>();
   const [matchNote, setMatchNote] = useState<string>();
   const [scanning, setScanning] = useState(false);
@@ -154,6 +156,8 @@ export function Intake() {
         keyNotes: sug.keyNotes,
         aiSuggestedGrade: sug.suggestedGrade,
       });
+      // Seed GCD title candidates from what the AI read (helps pick the exact printing).
+      void gcdSearch(sug.title ?? "", sug.issueNumber ?? undefined, sug.year ?? undefined);
       const bits = [
         sug.title ? `${sug.title}${sug.issueNumber ? " #" + sug.issueNumber : ""}` : null,
         sug.publisher,
@@ -170,6 +174,39 @@ export function Intake() {
       setBusy(false);
       setStep(undefined);
     }
+  }
+
+  async function gcdSearch(seriesQ: string, num?: string, year?: number) {
+    const q = (seriesQ || "").trim();
+    if (q.length < 2) {
+      setCandidates([]);
+      return;
+    }
+    try {
+      const r = await api.searchTitle(q, num?.trim() || undefined, year);
+      setCandidates(r.items);
+      if (r.items.length === 0) setMatchNote("No GCD matches for that title/issue.");
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+
+  function pickCandidate(c: UpcMatch) {
+    setTitle(c.series);
+    setPublisher(c.publisher ?? "");
+    setFilled((prev) => ({
+      issueNumber: c.number,
+      year: c.year,
+      variant: null,
+      keyIssue: prev?.keyIssue ?? false,
+      keyNotes: prev?.keyNotes ?? null,
+      aiSuggestedGrade: prev?.aiSuggestedGrade ?? null,
+    }));
+    setMatchNote(
+      `Using GCD: ${c.series}${c.number ? " #" + c.number : ""}` +
+        `${c.publisher ? " · " + c.publisher : ""}${c.year ? " · " + c.year : ""}`
+    );
+    setCandidates([]);
   }
 
   async function submit(runIdentify: boolean) {
@@ -266,6 +303,44 @@ export function Intake() {
             onChange={(e) => setPublisher(e.target.value)}
             placeholder="e.g. Marvel Comics"
           />
+
+          <label>Find in GCD by title / issue (for books with no scannable barcode)</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              value={searchNum}
+              onChange={(e) => setSearchNum(e.target.value)}
+              placeholder="Issue # (optional)"
+              style={{ maxWidth: 130 }}
+            />
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => gcdSearch(title, searchNum)}
+              disabled={title.trim().length < 2}
+              style={{ whiteSpace: "nowrap" }}
+            >
+              Search GCD
+            </button>
+          </div>
+          {candidates.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+              <span className="muted" style={{ fontSize: 12 }}>
+                Pick the exact match ({candidates.length} found):
+              </span>
+              {candidates.map((c, i) => (
+                <button
+                  key={`${c.gcdIssueId ?? c.barcode ?? "x"}-${i}`}
+                  type="button"
+                  className="secondary"
+                  onClick={() => pickCandidate(c)}
+                  style={{ textAlign: "left", fontSize: 13 }}
+                >
+                  {c.series}{c.number ? ` #${c.number}` : ""}
+                  {c.publisher ? ` · ${c.publisher}` : ""}{c.year ? ` · ${c.year}` : ""}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="col" style={{ maxWidth: 200 }}>
           {preview ? (

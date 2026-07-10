@@ -22,8 +22,7 @@ const QUERY =
   "SELECT i.barcode AS barcode, s.name AS series, i.number AS number, " +
   "p.name AS publisher, substr(i.key_date,1,4) AS year " +
   "FROM gcd_issue i JOIN gcd_series s ON i.series_id = s.id " +
-  "LEFT JOIN gcd_publisher p ON s.publisher_id = p.id " +
-  "WHERE i.barcode IS NOT NULL AND i.barcode <> ''";
+  "LEFT JOIN gcd_publisher p ON s.publisher_id = p.id";
 
 async function main() {
   if (replace) {
@@ -44,7 +43,7 @@ async function main() {
   for (const row of stmt.iterate()) {
     const barcode = String(row.barcode ?? "").replace(/\D/g, "");
     const series = row.series ? String(row.series) : "";
-    if (!barcode || !series) { skipped++; continue; }
+    if (!series) { skipped++; continue; }
     const yn = row.year ? parseInt(String(row.year), 10) : NaN;
     batch.push({
       barcode,

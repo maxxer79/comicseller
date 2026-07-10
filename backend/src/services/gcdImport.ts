@@ -81,8 +81,7 @@ export async function importGcdFromSqlite(dbPath: string, replace: boolean): Pro
       "SELECT i.barcode AS barcode, s.name AS series, i.number AS number, " +
       "p.name AS publisher, substr(i.key_date,1,4) AS year " +
       "FROM gcd_issue i JOIN gcd_series s ON i.series_id = s.id " +
-      "LEFT JOIN gcd_publisher p ON s.publisher_id = p.id " +
-      "WHERE i.barcode IS NOT NULL AND i.barcode <> ''";
+      "LEFT JOIN gcd_publisher p ON s.publisher_id = p.id";
     let stmt;
     try {
       stmt = db.prepare(QUERY);
@@ -108,7 +107,7 @@ export async function importGcdFromSqlite(dbPath: string, replace: boolean): Pro
     for (const row of stmt.iterate() as Iterable<Record<string, unknown>>) {
       const barcode = String(row.barcode ?? "").replace(/\D/g, "");
       const series = row.series ? String(row.series) : "";
-      if (!barcode || !series) { skipped++; continue; }
+      if (!series) { skipped++; continue; }
       const yn = row.year ? parseInt(String(row.year), 10) : NaN;
       batch.push({
         barcode,
@@ -166,7 +165,7 @@ export async function importGcdFromFile(path: string, replace: boolean): Promise
       else if (field === "publisher") rec.publisher = v || null;
       else if (field === "year") rec.year = toYear(v);
     });
-    if (!rec.barcode || !rec.series) { skipped++; continue; }
+    if (!rec.series) { skipped++; continue; }
     batch.push(rec);
     if (batch.length >= 2000) await flush();
   }

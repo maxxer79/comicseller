@@ -194,6 +194,8 @@ model GcdIssue {
   gcdIssueId String? // GCD's own issue id, for reference/links
 
   @@index([barcode])
+  @@index([series])
+  @@index([number])
 }
 
 // ---------------------------------------------------------------------------

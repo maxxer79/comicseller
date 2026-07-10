@@ -101,6 +101,29 @@ export async function lookupByUpc(rawUpc: string): Promise<UpcLookupResult> {
   return empty;
 }
 
+/**
+ * Search the GCD table by series title (+ optional issue number / year).
+ * Title+issue is NOT unique, so this returns a ranked candidate list to pick
+ * from — used for pre-barcode books where UPC lookup can't help.
+ */
+export async function searchByTitle(
+  seriesQ: string,
+  number?: string | null,
+  year?: number | null
+): Promise<UpcMatch[]> {
+  const q = (seriesQ || "").trim();
+  if (q.length < 2) return [];
+  const where: Record<string, unknown> = { series: { contains: q, mode: "insensitive" } };
+  if (number && String(number).trim()) where.number = String(number).trim();
+  if (typeof year === "number" && year > 0) where.year = year;
+  const rows = await prisma.gcdIssue.findMany({
+    where: where as never,
+    take: 30,
+    orderBy: [{ year: "desc" }],
+  });
+  return rows.map(toMatch);
+}
+
 /** Is the local GCD table populated? (for status/UX). */
 export async function gcdIssueCount(): Promise<number> {
   return prisma.gcdIssue.count();

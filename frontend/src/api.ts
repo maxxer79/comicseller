@@ -215,6 +215,12 @@ export const api = {
   async lookupUpc(upc: string): Promise<UpcLookupResult> {
     return request(`/lookup/upc/${encodeURIComponent(upc)}`);
   },
+  async searchTitle(series: string, number?: string, year?: number): Promise<{ count: number; items: UpcMatch[] }> {
+    const qs = new URLSearchParams({ series });
+    if (number) qs.set("number", number);
+    if (year) qs.set("year", String(year));
+    return request(`/lookup/title?${qs.toString()}`);
+  },
   async addPhoto(id: string, file: File, kind?: string): Promise<Photo> {
     const form = new FormData();
     form.append("photo", file);
