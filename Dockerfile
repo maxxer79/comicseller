@@ -45,4 +45,4 @@ ENV BUILD_SHA=$BUILD_SHA \
 EXPOSE 4000
 
 # Sync schema to the database on boot, then start the server.
-CMD ["sh", "-c", "./node_modules/.bin/prisma db push --skip-generate && node dist/index.js"]
+CMD ["sh", "-c", "./node_modules/.bin/prisma db push --skip-generate && node --experimental-sqlite dist/index.js"]

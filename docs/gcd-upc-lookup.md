@@ -130,3 +130,26 @@ use — you can restore and query it with tools you already have.
    a full refresh.
 
 GCD regenerates the dump about every two weeks — repeat steps 1-4 to update.
+
+## Easiest: use the GCD SQLite `.db` directly (no CSV)
+
+GCD also distributes a SQLite database (a `.db` file, sometimes alongside a
+`.sql`). You can load it straight in — Comicseller reads it with Node's built-in
+SQLite and runs the join for you. No CSV export needed.
+
+- **Small/medium `.db`:** Admin → UPC data → upload the `.db`.
+- **Large `.db`:** copy it onto the server and use **Import from path**, or run
+  the CLI importer from `backend/`:
+
+  ```bash
+  node --experimental-sqlite scripts/import-gcd-sqlite.mjs /path/to/gcd.db --replace
+  ```
+
+Notes:
+- The server enables SQLite via the `--experimental-sqlite` flag (already set in
+  the Docker image and the `start` script). For local `npm run dev`, use the CLI
+  importer above for `.db` files (CSV upload always works either way).
+- The `.sql` file is just the script used to build the `.db`; you don't need it
+  if you already have the `.db`. (To rebuild one: `sqlite3 gcd.db < dump.sql`.)
+- It expects the standard GCD tables `gcd_issue`, `gcd_series`, `gcd_publisher`;
+  if your file differs, the importer reports the tables it found.

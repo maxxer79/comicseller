@@ -71,13 +71,14 @@ export function GcdAdmin() {
       </div>
 
       <div className="card" style={{ maxWidth: 680 }}>
-        <h3>Upload a barcode CSV</h3>
+        <h3>Upload a file (CSV or GCD .db)</h3>
         <p className="muted" style={{ fontSize: 12 }}>
-          Upload the prepared <code>gcd_barcodes.csv</code> (columns: barcode, series,
-          number, publisher, year). See <code>docs/gcd-upc-lookup.md</code> for how to
-          export it from the GCD PostgreSQL dump.
+          Upload the GCD SQLite <code>.db</code> directly (recommended — no CSV needed),
+          or a prepared <code>gcd_barcodes.csv</code>. Big <code>.db</code> files are
+          better loaded via the server path below or the CLI script — see
+          <code>docs/gcd-upc-lookup.md</code>.
         </p>
-        <input type="file" accept=".csv,.tsv,text/csv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+        <input type="file" accept=".csv,.tsv,.db,.sqlite,text/csv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
         <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
           <input type="checkbox" checked={replace} onChange={(e) => setReplace(e.target.checked)} />
           Replace existing data (recommended for a full refresh)
@@ -91,10 +92,10 @@ export function GcdAdmin() {
       <div className="card" style={{ maxWidth: 680 }}>
         <h3>Import from a file on the server</h3>
         <p className="muted" style={{ fontSize: 12 }}>
-          If the CSV is already on the server (e.g. a big file you copied to the box),
-          give its absolute path instead of uploading.
+          If the file (CSV or GCD .db) is already on the server (e.g. a big .db you
+          copied to the box), give its absolute path instead of uploading.
         </p>
-        <input value={path} onChange={(e) => setPath(e.target.value)} placeholder="/data/gcd_barcodes.csv" />
+        <input value={path} onChange={(e) => setPath(e.target.value)} placeholder="/data/gcd.db  (or /data/gcd_barcodes.csv)" />
         <div className="spacer" />
         <button className="secondary" onClick={importPath} disabled={busy || !path.trim()}>
           {busy ? "Importing…" : "Import from path"}
