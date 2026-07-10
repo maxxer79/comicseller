@@ -6,7 +6,7 @@ import { getVersionInfo } from "../lib/version.js";
 import multer from "multer";
 import os from "node:os";
 import { promises as fs } from "node:fs";
-import { importGcdFromFile, gcdStatus } from "../services/gcdImport.js";
+import { gcdStatus, runGcdImportJob, getGcdJob, isGcdJobRunning } from "../services/gcdImport.js";
 
 export const adminRouter = Router();
 
@@ -154,7 +154,7 @@ const gcdUpload = multer({
 /** GET /admin/gcd/status — rows loaded + last updated. */
 adminRouter.get("/admin/gcd/status", requireAuth, requireAdmin, async (_req, res, next) => {
   try {
-    res.json(await gcdStatus());
+    res.json({ ...(await gcdStatus()), job: getGcdJob() });
   } catch (err) {
     next(err);
   }
@@ -170,14 +170,19 @@ adminRouter.post(
     const tmp = req.file?.path;
     try {
       if (!tmp) return res.status(400).json({ error: "No file uploaded" });
+      if (isGcdJobRunning()) {
+        await fs.unlink(tmp).catch(() => {});
+        return res.status(409).json({ error: "An import is already running." });
+      }
       const replace = req.query.replace === "1" || req.query.replace === "true";
-      const result = await importGcdFromFile(tmp, replace);
-      const st = await gcdStatus();
-      res.json({ ...result, ...st });
+      // Run in the background so the request returns immediately (avoids proxy timeouts).
+      void runGcdImportJob(tmp, replace, `upload:${req.file?.originalname ?? "file"}`, () =>
+        fs.unlink(tmp).catch(() => {})
+      );
+      res.status(202).json({ started: true });
     } catch (err) {
-      next(err);
-    } finally {
       if (tmp) await fs.unlink(tmp).catch(() => {});
+      next(err);
     }
   }
 );
@@ -189,9 +194,11 @@ adminRouter.post("/admin/gcd/import-path", requireAuth, requireAdmin, async (req
     if (typeof b.path !== "string" || !b.path.trim()) {
       return res.status(400).json({ error: "path is required" });
     }
-    const result = await importGcdFromFile(b.path.trim(), b.replace === true || b.replace === "true");
-    const st = await gcdStatus();
-    res.json({ ...result, ...st });
+    if (isGcdJobRunning()) {
+      return res.status(409).json({ error: "An import is already running." });
+    }
+    void runGcdImportJob(b.path.trim(), b.replace === true || b.replace === "true", `path:${b.path.trim()}`);
+    res.status(202).json({ started: true });
   } catch (err) {
     next(err);
   }

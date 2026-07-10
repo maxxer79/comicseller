@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
-import { api, type GcdStatus, type GcdImportResult } from "../../api";
+import { api, type GcdStatus } from "../../api";
 
 export function GcdAdmin() {
   const [status, setStatus] = useState<GcdStatus>();
   const [file, setFile] = useState<File | null>(null);
   const [path, setPath] = useState("");
   const [replace, setReplace] = useState(true);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [msg, setMsg] = useState<string>();
 
@@ -17,36 +16,43 @@ export function GcdAdmin() {
       setError((e as Error).message);
     }
   }
+
   useEffect(() => {
     loadStatus();
   }, []);
 
-  function done(r: GcdImportResult) {
-    setStatus({ datasetSize: r.datasetSize, lastUpdated: r.lastUpdated, ready: r.datasetSize > 0 });
-    setMsg(`Imported ${r.imported.toLocaleString()} rows (skipped ${r.skipped.toLocaleString()}). Total now ${r.datasetSize.toLocaleString()}.`);
-  }
+  // Poll while an import is running so progress updates live.
+  useEffect(() => {
+    if (status?.job?.status !== "running") return;
+    const id = setInterval(loadStatus, 3000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status?.job?.status]);
 
-  async function importUpload() {
+  const job = status?.job;
+  const running = job?.status === "running";
+
+  async function startUpload() {
     if (!file) return;
-    setBusy(true); setError(undefined); setMsg(undefined);
+    setError(undefined); setMsg(undefined);
     try {
-      done(await api.gcdImportUpload(file, replace));
+      await api.gcdImportUpload(file, replace);
       setFile(null);
+      setMsg("Import started — it runs in the background; progress updates below.");
+      await loadStatus();
     } catch (e) {
       setError((e as Error).message);
-    } finally {
-      setBusy(false);
     }
   }
-  async function importPath() {
+  async function startPath() {
     if (!path.trim()) return;
-    setBusy(true); setError(undefined); setMsg(undefined);
+    setError(undefined); setMsg(undefined);
     try {
-      done(await api.gcdImportPath(path.trim(), replace));
+      await api.gcdImportPath(path.trim(), replace);
+      setMsg("Import started — it runs in the background; progress updates below.");
+      await loadStatus();
     } catch (e) {
       setError((e as Error).message);
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -58,7 +64,7 @@ export function GcdAdmin() {
       <div className="card" style={{ maxWidth: 680 }}>
         <h3>UPC / GCD data</h3>
         <p className="muted" style={{ fontSize: 13 }}>
-          Local barcode → metadata lookup. When loaded, scanning a comic fills in
+          Local barcode &amp; title lookups. When loaded, adding a comic fills in
           title/issue/publisher/year from this data first, and only falls back to
           the AI cover read when there's no match.
         </p>
@@ -68,6 +74,21 @@ export function GcdAdmin() {
             <span className="muted"> · last updated {new Date(status.lastUpdated).toLocaleString()}</span>
           )}
         </p>
+
+        {job && job.status !== "idle" && (
+          <p
+            className={job.status === "error" ? "error" : job.status === "done" ? "success" : "muted"}
+            style={{ fontSize: 13 }}
+          >
+            {job.status === "running" && (
+              <>⏳ Importing… {job.imported.toLocaleString()} rows so far (skipped {job.skipped.toLocaleString()}). Safe to leave this page.</>
+            )}
+            {job.status === "done" && (
+              <>✓ Import finished: {job.imported.toLocaleString()} rows (skipped {job.skipped.toLocaleString()}). Total now {(job.datasetSize ?? status?.datasetSize ?? 0).toLocaleString()}.</>
+            )}
+            {job.status === "error" && <>✗ Import failed: {job.error}</>}
+          </p>
+        )}
       </div>
 
       <div className="card" style={{ maxWidth: 680 }}>
@@ -84,8 +105,8 @@ export function GcdAdmin() {
           Replace existing data (recommended for a full refresh)
         </label>
         <div className="spacer" />
-        <button onClick={importUpload} disabled={busy || !file}>
-          {busy ? "Importing…" : "Upload & import"}
+        <button onClick={startUpload} disabled={running || !file}>
+          {running ? "Import running…" : "Upload & import"}
         </button>
       </div>
 
@@ -97,8 +118,8 @@ export function GcdAdmin() {
         </p>
         <input value={path} onChange={(e) => setPath(e.target.value)} placeholder="/data/gcd.db  (or /data/gcd_barcodes.csv)" />
         <div className="spacer" />
-        <button className="secondary" onClick={importPath} disabled={busy || !path.trim()}>
-          {busy ? "Importing…" : "Import from path"}
+        <button className="secondary" onClick={startPath} disabled={running || !path.trim()}>
+          {running ? "Import running…" : "Import from path"}
         </button>
       </div>
     </div>

@@ -62,7 +62,7 @@ async function isSqliteFile(path: string): Promise<boolean> {
 }
 
 /** Import directly from a GCD SQLite (.db) file using Node's built-in SQLite. */
-export async function importGcdFromSqlite(dbPath: string, replace: boolean): Promise<GcdImportResult> {
+export async function importGcdFromSqlite(dbPath: string, replace: boolean, onProgress?: (imported: number, skipped: number) => void): Promise<GcdImportResult> {
   let DatabaseSync: unknown;
   try {
     // Node's built-in SQLite (needs the --experimental-sqlite flag at startup).
@@ -103,6 +103,7 @@ export async function importGcdFromSqlite(dbPath: string, replace: boolean): Pro
       await prisma.gcdIssue.createMany({ data: batch });
       imported += batch.length;
       batch = [];
+      onProgress?.(imported, skipped);
     };
     for (const row of stmt.iterate() as Iterable<Record<string, unknown>>) {
       const barcode = String(row.barcode ?? "").replace(/\D/g, "");
@@ -125,9 +126,9 @@ export async function importGcdFromSqlite(dbPath: string, replace: boolean): Pro
   }
 }
 
-export async function importGcdFromFile(path: string, replace: boolean): Promise<GcdImportResult> {
+export async function importGcdFromFile(path: string, replace: boolean, onProgress?: (imported: number, skipped: number) => void): Promise<GcdImportResult> {
   if (!existsSync(path)) throw new Error(`File not found: ${path}`);
-  if (await isSqliteFile(path)) return importGcdFromSqlite(path, replace);
+  if (await isSqliteFile(path)) return importGcdFromSqlite(path, replace, onProgress);
   if (replace) await prisma.gcdIssue.deleteMany({});
 
   const rl = createInterface({ input: createReadStream(path), crlfDelay: Infinity });
@@ -142,6 +143,7 @@ export async function importGcdFromFile(path: string, replace: boolean): Promise
     await prisma.gcdIssue.createMany({ data: batch });
     imported += batch.length;
     batch = [];
+    onProgress?.(imported, skipped);
   };
 
   for await (const line of rl) {
@@ -178,4 +180,68 @@ export async function gcdStatus(): Promise<{ datasetSize: number; lastUpdated: s
   const datasetSize = await prisma.gcdIssue.count();
   const newest = await prisma.gcdIssue.findFirst({ orderBy: { createdAt: "desc" }, select: { createdAt: true } });
   return { datasetSize, lastUpdated: newest ? newest.createdAt.toISOString() : null };
+}
+
+// ---------------------------------------------------------------------------
+// Background import job (single global job; imports are admin-only + infrequent)
+// ---------------------------------------------------------------------------
+
+export interface GcdJob {
+  status: "idle" | "running" | "done" | "error";
+  source: string | null;
+  imported: number;
+  skipped: number;
+  startedAt: string | null;
+  finishedAt: string | null;
+  error: string | null;
+  datasetSize: number | null;
+}
+
+let currentJob: GcdJob = {
+  status: "idle", source: null, imported: 0, skipped: 0,
+  startedAt: null, finishedAt: null, error: null, datasetSize: null,
+};
+
+export function getGcdJob(): GcdJob {
+  return currentJob;
+}
+export function isGcdJobRunning(): boolean {
+  return currentJob.status === "running";
+}
+
+/** Run an import in the background, tracking progress on the global job. */
+export async function runGcdImportJob(
+  path: string,
+  replace: boolean,
+  source: string,
+  cleanup?: () => Promise<void>
+): Promise<void> {
+  currentJob = {
+    status: "running", source, imported: 0, skipped: 0,
+    startedAt: new Date().toISOString(), finishedAt: null, error: null, datasetSize: null,
+  };
+  try {
+    const res = await importGcdFromFile(path, replace, (imported, skipped) => {
+      currentJob.imported = imported;
+      currentJob.skipped = skipped;
+    });
+    const st = await gcdStatus();
+    currentJob = {
+      ...currentJob,
+      status: "done",
+      imported: res.imported,
+      skipped: res.skipped,
+      finishedAt: new Date().toISOString(),
+      datasetSize: st.datasetSize,
+    };
+  } catch (e) {
+    currentJob = {
+      ...currentJob,
+      status: "error",
+      finishedAt: new Date().toISOString(),
+      error: e instanceof Error ? e.message : String(e),
+    };
+  } finally {
+    if (cleanup) await cleanup().catch(() => {});
+  }
 }

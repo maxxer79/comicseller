@@ -30,6 +30,7 @@ COPY --from=backend /app/backend/node_modules ./node_modules
 COPY --from=backend /app/backend/dist ./dist
 COPY --from=backend /app/backend/package.json ./package.json
 COPY backend/prisma ./prisma
+COPY backend/scripts ./scripts
 COPY VERSION /app/VERSION
 COPY --from=frontend /app/frontend/dist /app/frontend/dist
 

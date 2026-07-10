@@ -89,7 +89,12 @@ export interface CopiesResult {
   count: number;
   items: { id: string; sku: string; grade: number | null; status: ComicStatus; recommendedPrice: string | null }[];
 }
-export interface GcdStatus { datasetSize: number; ready?: boolean; lastUpdated: string | null; }
+export interface GcdJob {
+  status: "idle" | "running" | "done" | "error";
+  source: string | null; imported: number; skipped: number;
+  startedAt: string | null; finishedAt: string | null; error: string | null; datasetSize: number | null;
+}
+export interface GcdStatus { datasetSize: number; ready?: boolean; lastUpdated: string | null; job?: GcdJob; }
 export interface GcdImportResult { imported: number; skipped: number; datasetSize: number; lastUpdated: string | null; }
 
 export type AiProvider = "anthropic" | "gemini" | "grok";
@@ -248,12 +253,12 @@ export const api = {
   async gcdStatus(): Promise<GcdStatus> {
     return request(`/admin/gcd/status`);
   },
-  async gcdImportUpload(file: File, replace: boolean): Promise<GcdImportResult> {
+  async gcdImportUpload(file: File, replace: boolean): Promise<{ started: boolean }> {
     const form = new FormData();
     form.append("file", file);
     return request(`/admin/gcd/import?replace=${replace ? "1" : "0"}`, { method: "POST", body: form });
   },
-  async gcdImportPath(path: string, replace: boolean): Promise<GcdImportResult> {
+  async gcdImportPath(path: string, replace: boolean): Promise<{ started: boolean }> {
     return request(`/admin/gcd/import-path`, jsonInit("POST", { path, replace }));
   },
   async addPrice(id: string, body: {
